@@ -20,6 +20,7 @@ const meta = require('../services/metaCloud');
 const flowEndpoint = require('./flowEndpoint');
 const apptService = require('../services/appointmentService');
 const subscriptionSvc = require('../services/subscription');
+const { markApptPaid, findApptByReference } = require('../services/apptPayments');
 const Appointment = require('../models/Appointment');
 const { t } = require('../services/i18n');
 
@@ -50,6 +51,52 @@ function verifySignature(req) {
   } catch {
     return false;
   }
+}
+
+/* ─── Meta Native WhatsApp Pay — payment status callback ──────────────── */
+/**
+ * After a patient pays via the order_details "Review and Pay" message, Meta
+ * sends an inbound interactive message of type `payment`. Field locations have
+ * varied across Meta API versions, so we read defensively.
+ */
+async function handlePaymentInteractive(msg) {
+  const pay = msg.interactive?.payment || {};
+  const referenceId =
+    pay.reference_id ||
+    pay.referenceId ||
+    pay.transaction?.reference_id ||
+    msg.interactive?.payment_status?.reference_id;
+  const status = String(
+    pay.status || pay.transaction?.status || msg.interactive?.payment_status?.status || ''
+  ).toLowerCase();
+  const paymentId = pay.transaction?.id || pay.transaction_id || pay.payment_id || '';
+
+  console.log('[webhook] payment interactive', { referenceId, status, paymentId });
+
+  if (!referenceId) return false;
+
+  const appt = await findApptByReference(referenceId);
+  if (!appt) {
+    console.warn('[webhook] no appointment for payment reference', referenceId);
+    return true;
+  }
+
+  const phone = chatbot.normPhone(msg.from);
+  const lang = await chatbot.getLanguage(phone);
+
+  if (['captured', 'success', 'successful', 'paid', 'completed'].includes(status)) {
+    await markApptPaid(appt, { paymentId, metaPaymentStatus: status, source: 'meta_native_pay' });
+  } else if (['failed', 'cancelled', 'canceled', 'declined'].includes(status)) {
+    appt.metaPaymentStatus = status;
+    await appt.save();
+    try { await meta.sendText(phone, t('pay_failed_body', lang)); } catch {}
+  } else {
+    // pending / unknown — record status for audit
+    appt.metaPaymentStatus = status || appt.metaPaymentStatus;
+    if (paymentId && !appt.paymentTxnId) appt.paymentTxnId = paymentId;
+    await appt.save();
+  }
+  return true;
 }
 
 /* ─── flow-completion dispatcher ──────────────────────────────────────── */
@@ -93,7 +140,15 @@ async function handleFlowCompletion(msg) {
           paymentMode: payload.payment_mode === 'online' ? 'online' : 'pay_at_hospital',
         });
         await flowEndpoint.dropBookingToken(payload.booking_token);
-        await chatbot.sendAppointmentPdf(phone, appt.toObject(), lang);
+
+        // Online + native pay configured + fee > 0 → request payment inside
+        // WhatsApp. The confirmation PDF is sent only after payment succeeds.
+        const wantsOnline = payload.payment_mode === 'online';
+        if (wantsOnline && chatbot.nativePayConfigured() && (appt.fee || 0) > 0) {
+          await chatbot.sendPaymentRequest(phone, appt.toObject(), lang);
+        } else {
+          await chatbot.sendAppointmentPdf(phone, appt.toObject(), lang);
+        }
         return true;
       }
 
@@ -178,6 +233,24 @@ router.post('/meta', async (req, res) => {
           if (msg.type === 'text') text = msg.text?.body || '';
           else if (msg.type === 'interactive') {
             interactive = msg.interactive;
+
+            // Native WhatsApp Pay — payment status callback (patient → hospital).
+            // Gated on automation being enabled (admin holds an active plan).
+            if (
+              msg.interactive?.type === 'payment' ||
+              msg.interactive?.type === 'payment_status' ||
+              msg.interactive?.payment
+            ) {
+              const automationOn = await subscriptionSvc.isAutomationEnabled();
+              if (!automationOn) continue;
+              try {
+                const handled = await handlePaymentInteractive(msg);
+                if (handled) continue;
+              } catch (err) {
+                console.error('[webhook] payment handler failed:', err.message);
+              }
+            }
+
             if (msg.interactive?.type === 'nfm_reply') {
               // Flow completions (booking/reschedule/cancel) only run while an
               // admin holds an active plan. Otherwise stay silent.

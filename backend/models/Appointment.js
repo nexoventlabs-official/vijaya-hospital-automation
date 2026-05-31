@@ -49,6 +49,10 @@ const AppointmentSchema = new mongoose.Schema(
     },
     paymentTxnId: { type: String, default: '' },
 
+    /** Meta Native WhatsApp Pay (order_details / payment interactive) */
+    metaReferenceId: { type: String, default: '', index: true },
+    metaPaymentStatus: { type: String, default: '' }, // pending|captured|failed|...
+
     status: {
       type: String,
       enum: ['booked', 'arrived', 'completed', 'cancelled', 'rescheduled', 'postponed'],

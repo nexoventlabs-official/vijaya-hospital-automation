@@ -211,6 +211,123 @@ async function sendFlowMessage(to, options) {
   return data;
 }
 
+/**
+ * Native WhatsApp Pay — Order Details message (patient → hospital appointment fee).
+ *
+ * https://developers.facebook.com/docs/whatsapp/cloud-api/messages/order-details-messages
+ *
+ * Currency amounts use { value, offset } where actual_amount = value / offset.
+ * For INR with offset=100, ₹500.00 → { value: 50000, offset: 100 }.
+ *
+ * @param {string} to                       WhatsApp number (digits only)
+ * @param {object} opts
+ * @param {string} opts.referenceId          Unique id for this order (e.g. APPT-<id>)
+ * @param {string} opts.configurationName    Meta payment configuration name
+ * @param {string} [opts.headerImageUrl]     Optional header image URL
+ * @param {string} [opts.headerText]         Used when no headerImageUrl
+ * @param {string} opts.bodyText
+ * @param {string} [opts.footerText]
+ * @param {number} [opts.expirationTimestamp] epoch seconds; optional
+ * @param {Array<{retailerId,name,amount,quantity,saleAmount?}>} opts.items
+ * @param {number} opts.subtotal             subtotal in major units (₹)
+ * @param {number} [opts.tax]
+ * @param {number} [opts.totalAmount]        total in major units (₹)
+ * @param {string} [opts.currency='INR']
+ * @param {number} [opts.offset=100]
+ * @param {string} [opts.orderType='services']
+ * @param {object} [opts.notes]
+ */
+async function sendOrderDetails(to, opts) {
+  const { baseUrl, accessToken } = cfg();
+  const phone = String(to).replace(/\D/g, '');
+
+  const {
+    referenceId,
+    configurationName,
+    headerImageUrl,
+    headerText,
+    bodyText,
+    footerText,
+    expirationTimestamp,
+    items,
+    subtotal,
+    tax,
+    currency = 'INR',
+    offset = 100,
+    orderType = 'services',
+    notes,
+  } = opts;
+
+  if (!referenceId) throw new Error('sendOrderDetails: referenceId required');
+  if (!configurationName) throw new Error('sendOrderDetails: configurationName required');
+  if (!Array.isArray(items) || items.length === 0) throw new Error('sendOrderDetails: items required');
+
+  const toMoney = (amt) => ({ value: Math.round(Number(amt || 0) * offset), offset });
+
+  let header;
+  if (headerImageUrl) header = { type: 'image', image: { link: headerImageUrl } };
+  else if (headerText) header = { type: 'text', text: headerText };
+
+  const totalValue = items.reduce((s, it) => {
+    const each = toMoney(it.saleAmount ?? it.amount).value;
+    return s + each * (it.quantity || 1);
+  }, 0);
+  const totalAmount =
+    typeof opts.totalAmount === 'number' ? toMoney(opts.totalAmount) : { value: totalValue, offset };
+
+  const orderItems = items.map((it) => {
+    const o = {
+      retailer_id: it.retailerId,
+      name: it.name,
+      amount: toMoney(it.amount),
+      quantity: it.quantity || 1,
+    };
+    if (it.saleAmount !== undefined) o.sale_amount = toMoney(it.saleAmount);
+    return o;
+  });
+
+  const orderBlock = { status: 'pending', items: orderItems, subtotal: toMoney(subtotal) };
+  if (tax !== undefined) orderBlock.tax = { value: toMoney(tax) };
+
+  const paymentSetting = {
+    type: 'payment_gateway',
+    payment_gateway: {
+      type: 'razorpay',
+      configuration_name: configurationName,
+      razorpay: {
+        receipt: `vh_${String(referenceId).slice(-12)}`,
+        notes: { reference_id: String(referenceId), ...(notes || {}) },
+      },
+    },
+  };
+
+  const action = {
+    name: 'review_and_pay',
+    parameters: {
+      reference_id: String(referenceId),
+      type: orderType,
+      currency,
+      total_amount: totalAmount,
+      order: orderBlock,
+      payment_settings: [paymentSetting],
+    },
+  };
+  if (expirationTimestamp) {
+    action.parameters.expiration = { timestamp: String(expirationTimestamp), description: 'Payment expires' };
+  }
+
+  const interactive = { type: 'order_details', body: { text: bodyText }, action };
+  if (header) interactive.header = header;
+  if (footerText) interactive.footer = { text: footerText };
+
+  const { data } = await api.post(
+    `${baseUrl}/messages`,
+    { messaging_product: 'whatsapp', recipient_type: 'individual', to: phone, type: 'interactive', interactive },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  return data;
+}
+
 /* ─── Flow management (used by setup scripts) ──────────────────────────── */
 
 async function createFlow(name, categories = ['OTHER'], { endpointUri } = {}) {
@@ -289,6 +406,7 @@ module.exports = {
   sendButtons,
   sendCtaUrl,
   sendFlowMessage,
+  sendOrderDetails,
   uploadMedia,
   createFlow,
   updateFlowJSON,

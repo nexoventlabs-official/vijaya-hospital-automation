@@ -19,6 +19,7 @@ const realtimeRoutes = require('./routes/realtime');
 const adminsRoutes = require('./routes/admins');
 const plansRoutes = require('./routes/plans');
 const billingRoutes = require('./routes/billing');
+const paymentRoutes = require('./routes/payment');
 
 const app = express();
 
@@ -55,6 +56,9 @@ app.use(
       if (req.originalUrl && req.originalUrl.startsWith('/api/webhook/meta')) {
         req.rawBody = buf.toString();
       }
+      if (req.originalUrl && req.originalUrl.startsWith('/api/payment/razorpay-webhook')) {
+        req.rawBody = buf.toString();
+      }
     },
   })
 );
@@ -79,6 +83,7 @@ app.use('/api/realtime', realtimeRoutes);
 app.use('/api/admins', adminsRoutes);
 app.use('/api/plans', plansRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // 404 / errors
 app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.originalUrl }));

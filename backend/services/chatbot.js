@@ -105,6 +105,63 @@ async function uploadAppointmentPdf(appointment, settings, title) {
   return { mediaId, filename };
 }
 
+/**
+ * Whether patient → hospital online payment via Meta Native WhatsApp Pay is
+ * configured (the hospital admin's Razorpay linked to a Meta payment config).
+ */
+function nativePayConfigured() {
+  return !!process.env.META_PAYMENT_CONFIGURATION_NAME;
+}
+
+/**
+ * Send a native WhatsApp "Review and Pay" message for an appointment fee.
+ * Payment settles to the hospital admin's Razorpay. The appointment stays
+ * `unpaid` until the `payment` interactive confirmation arrives at the webhook.
+ */
+async function sendPaymentRequest(phone, appointment, lang) {
+  const settings = await settingsSvc.get();
+  const headerImageUrl = await flowImages.getUrl('chat_appointment_pdf_header');
+  const fee = appointment.fee || 0;
+
+  await meta.sendOrderDetails(phone, {
+    referenceId: `APPT-${appointment._id}`,
+    configurationName: process.env.META_PAYMENT_CONFIGURATION_NAME,
+    headerImageUrl: headerImageUrl || undefined,
+    headerText: !headerImageUrl ? (settings?.hospitalName || 'Vijya Hospital') : undefined,
+    bodyText: t('pay_request_body', lang, {
+      doctor: appointment.doctorName,
+      date: appointment.date,
+      time: appointment.timeLabel || appointment.time,
+      fee,
+    }),
+    footerText: t('pay_order_footer', lang),
+    items: [
+      {
+        retailerId: appointment.code,
+        name: `${t('pay_item_consultation', lang)} — ${appointment.doctorName}`,
+        amount: fee,
+        quantity: 1,
+      },
+    ],
+    subtotal: fee,
+    totalAmount: fee,
+    notes: { appointment_id: String(appointment._id), code: appointment.code },
+  });
+}
+
+/** Sent after a successful online payment — success note + confirmation PDF. */
+async function sendPaymentSuccess(phone, appointment, lang) {
+  await meta.sendText(
+    phone,
+    t('pay_success_body', lang, {
+      code: appointment.code,
+      doctor: appointment.doctorName,
+      fee: appointment.fee || 0,
+    })
+  );
+  await sendAppointmentPdf(phone, appointment, lang);
+}
+
 /** "Pay at Hospital" / online: send PDF + Get Directions CTA. */
 async function sendAppointmentPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
@@ -307,6 +364,9 @@ module.exports = {
   sendLanguageChoice,
   sendChooseService,
   sendAppointmentPdf,
+  sendPaymentRequest,
+  sendPaymentSuccess,
+  nativePayConfigured,
   sendRescheduledPdf,
   sendCancelledPdf,
   sendPostponePdf,

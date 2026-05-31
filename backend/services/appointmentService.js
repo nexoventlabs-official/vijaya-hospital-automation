@@ -140,7 +140,9 @@ async function bookAppointment({
     timeLabel: fmt12(time),
     fee: doctor.consultationFee || 0,
     paymentMode,
-    paymentStatus: paymentMode === 'online' ? 'paid' : 'unpaid',
+    // Online bookings start UNPAID — payment is collected via Meta Native
+    // WhatsApp Pay and confirmed by webhook before flipping to 'paid'.
+    paymentStatus: 'unpaid',
     status: 'booked',
   });
 

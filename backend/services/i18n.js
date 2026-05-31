@@ -133,6 +133,34 @@ const STRINGS = {
   pay_mode_online: { en: 'Online (Paid)', te: 'ఆన్‌లైన్ (చెల్లించబడింది)' },
   directions_cta: { en: 'Get Directions', te: 'దారి చూపండి' },
 
+  // ─── Online payment (Meta Native WhatsApp Pay) ─────────────────────────
+  pay_request_body: {
+    en:
+      '💳 *Complete your payment*\n\n' +
+      'Consultation with *{doctor}*\nDate: *{date} at {time}*\nAmount: *₹{fee}*\n\n' +
+      'Tap *Review and Pay* to pay securely inside WhatsApp. Your appointment is confirmed once payment succeeds.',
+    te:
+      '💳 *మీ చెల్లింపును పూర్తి చేయండి*\n\n' +
+      '*{doctor}* తో సంప్రదింపు\nతేదీ: *{date} {time}*\nమొత్తం: *₹{fee}*\n\n' +
+      'WhatsApp లోనే సురక్షితంగా చెల్లించడానికి *Review and Pay* నొక్కండి. చెల్లింపు విజయవంతమైన తర్వాత అపాయింట్‌మెంట్ నిర్ధారించబడుతుంది.',
+  },
+  pay_item_consultation: { en: 'Consultation Fee', te: 'సంప్రదింపు ఫీజు' },
+  pay_order_footer: { en: 'Secure payment via WhatsApp', te: 'WhatsApp ద్వారా సురక్షిత చెల్లింపు' },
+  pay_success_body: {
+    en:
+      '✅ *Payment Received*\n\n' +
+      'Code: *{code}*\nDoctor: *{doctor}*\nAmount paid: *₹{fee}*\n\n' +
+      'Your appointment is confirmed. See the attached confirmation below.',
+    te:
+      '✅ *చెల్లింపు అందింది*\n\n' +
+      'కోడ్: *{code}*\nడాక్టర్: *{doctor}*\nచెల్లించిన మొత్తం: *₹{fee}*\n\n' +
+      'మీ అపాయింట్‌మెంట్ నిర్ధారించబడింది. కింద నిర్ధారణ పత్రం చూడండి.',
+  },
+  pay_failed_body: {
+    en: '⚠️ Your payment could not be completed. Please try again, or choose *Pay at Hospital*.',
+    te: '⚠️ మీ చెల్లింపు పూర్తి కాలేదు. దయచేసి మళ్ళీ ప్రయత్నించండి లేదా *హాస్పిటల్‌లో చెల్లించండి* ఎంచుకోండి.',
+  },
+
   reschedule_pdf_body: {
     en:
       '🔄 *Appointment Rescheduled*\n\n' +
