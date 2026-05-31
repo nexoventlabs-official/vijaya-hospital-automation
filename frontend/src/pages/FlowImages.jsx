@@ -32,29 +32,51 @@ export default function FlowImages() {
   }
 
   return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-brand-900">Flow Images</h1>
-      <p className="text-sm text-slate-600">
-        Configure every image / icon used by the WhatsApp chatbot and Flow. Banners are 1000×125, icons 200×200.
-      </p>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-6 max-w-6xl font-mint">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Flow Images</h1>
+        <p className="text-sm text-soft-stone mt-1">
+          Configure assets utilized by the WhatsApp chatbot and flow systems. Banners are 1000×125, icons 200×200.
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((it) => (
-          <div key={it.key} className="card p-4">
-            <div className="text-xs text-slate-500 font-mono mb-1">{it.key}</div>
-            <div className="text-sm font-medium mb-2">{it.label || ''}</div>
-            <div className="bg-slate-100 rounded-lg flex items-center justify-center h-32 mb-3 overflow-hidden">
-              {it.imageUrl
-                ? <img src={it.imageUrl} alt={it.key} className="object-cover w-full h-full" />
-                : <ImageIcon className="text-slate-400" />}
+          <div key={it.key} className="card p-5 flex flex-col justify-between hover:border-zenith-teal/50 hover:bg-pale-amber/10 transition-all duration-300">
+            <div>
+              <div className="text-xs font-mono font-semibold text-soft-stone tracking-wide bg-pale-amber/50 py-1 px-2.5 rounded border border-arctic-mist/40 inline-block mb-3">
+                {it.key}
+              </div>
+              <div className="text-sm font-semibold text-midnight-pine mb-3 font-grenette">{it.label || ''}</div>
+              <div className="bg-pale-amber/30 border border-arctic-mist rounded-elements flex items-center justify-center h-32 mb-4 overflow-hidden relative group">
+                {it.imageUrl ? (
+                  <img src={it.imageUrl} alt={it.key} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <ImageIcon size={24} className="text-soft-stone/40" />
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            
+            <div className="flex items-center gap-2 border-t border-arctic-mist/60 pt-3.5 mt-2">
               <input
                 type="file" accept="image/*" hidden
                 ref={(el) => (inputs.current[it.key] = el)}
                 onChange={(e) => upload(it.key, e.target.files?.[0])}
               />
-              <button onClick={() => inputs.current[it.key]?.click()} className="btn-secondary flex-1"><Upload size={14} /> Upload</button>
-              {it.imageUrl && <button onClick={() => clear(it.key)} className="btn-ghost text-rose-600"><Trash2 size={14} /></button>}
+              <button
+                onClick={() => inputs.current[it.key]?.click()}
+                className="btn-secondary py-2 px-3.5 text-xs font-semibold flex-1"
+              >
+                <Upload size={13} /> Upload Asset
+              </button>
+              {it.imageUrl && (
+                <button
+                  onClick={() => clear(it.key)}
+                  className="btn-ghost py-2 px-2.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
           </div>
         ))}

@@ -56,51 +56,71 @@ export default function Departments() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-900">Departments</h1>
-        <button onClick={() => open(null)} className="btn-primary"><Plus size={16} /> Add Department</button>
+    <div className="space-y-6 max-w-6xl font-mint">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Departments</h1>
+          <p className="text-sm text-soft-stone mt-1">Organize medical sections and services offered by the hospital.</p>
+        </div>
+        <button onClick={() => open(null)} className="btn-primary py-2.5 px-4 text-xs font-semibold">
+          <Plus size={14} /> Add Department
+        </button>
       </div>
 
       <div className="card overflow-hidden">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="text-left px-4 py-3">Icon</th>
-              <th className="text-left px-4 py-3">Name</th>
-              <th className="text-left px-4 py-3">Description</th>
-              <th className="text-left px-4 py-3">Order</th>
-              <th className="text-left px-4 py-3">Active</th>
-              <th className="text-right px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map((d) => (
-              <tr key={d._id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  {d.iconUrl
-                    ? <img src={d.iconUrl} alt="" className="w-9 h-9 rounded object-cover" />
-                    : <div className="w-9 h-9 rounded bg-slate-100 flex items-center justify-center text-slate-400"><ImageIcon size={16} /></div>}
-                </td>
-                <td className="px-4 py-3 font-medium">{d.name}<div className="text-xs text-slate-500">{d.nameTe}</div></td>
-                <td className="px-4 py-3 text-slate-600">{d.description}</td>
-                <td className="px-4 py-3">{d.sortOrder}</td>
-                <td className="px-4 py-3">
-                  <span className={`badge ${d.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                    {d.active ? 'Active' : 'Hidden'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => open(d)} className="btn-ghost"><Pencil size={14} /></button>
-                  <button onClick={() => del(d)} className="btn-ghost text-rose-600"><Trash2 size={14} /></button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-pale-amber/20 text-midnight-pine border-b border-arctic-mist font-grenette text-xs font-semibold uppercase tracking-wider">
+              <tr>
+                <th className="text-left px-6 py-4">Icon</th>
+                <th className="text-left px-6 py-4">Name</th>
+                <th className="text-left px-6 py-4">Description</th>
+                <th className="text-left px-6 py-4">Order</th>
+                <th className="text-left px-6 py-4">Status</th>
+                <th className="text-right px-6 py-4"></th>
               </tr>
-            ))}
-            {!items.length && (
-              <tr><td colSpan="6" className="text-center py-8 text-slate-500">No departments yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-arctic-mist/70">
+              {items.map((d) => (
+                <tr key={d._id} className="hover:bg-pale-amber/5 transition-colors duration-150">
+                  <td className="px-6 py-4">
+                    {d.iconUrl
+                      ? <img src={d.iconUrl} alt="" className="w-10 h-10 rounded-elements object-cover border border-arctic-mist" />
+                      : <div className="w-10 h-10 rounded-elements bg-pale-amber/50 flex items-center justify-center text-soft-stone border border-arctic-mist"><ImageIcon size={16} /></div>}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-semibold text-midnight-pine text-sm">{d.name}</div>
+                    <div className="text-xs text-soft-stone mt-0.5">{d.nameTe}</div>
+                  </td>
+                  <td className="px-6 py-4 text-soft-stone max-w-xs truncate">{d.description || '—'}</td>
+                  <td className="px-6 py-4 font-medium text-midnight-pine">{d.sortOrder}</td>
+                  <td className="px-6 py-4">
+                    <span className={`badge ${d.active ? 'bg-pale-mint/40 text-zenith-teal border-pale-mint' : 'bg-slate-50 text-soft-stone border-arctic-mist'}`}>
+                      {d.active ? 'Active' : 'Hidden'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <button onClick={() => open(d)} className="btn-ghost py-1 px-2.5 text-xs">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => del(d)} className="btn-ghost py-1 px-2.5 text-xs text-rose-600 hover:text-rose-700">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!items.length && (
+                <tr>
+                  <td colSpan="6" className="text-center py-12 text-soft-stone text-sm">
+                    No departments created yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {editing && (
@@ -113,20 +133,44 @@ export default function Departments() {
             <Input label="Sort Order" type="number" value={form.sortOrder} onChange={(v) => setForm({ ...form, sortOrder: v })} />
             <div>
               <label className="label">Active</label>
-              <select className="input" value={form.active ? 'true' : 'false'} onChange={(e) => setForm({ ...form, active: e.target.value === 'true' })}>
+              <select className="input text-sm" value={form.active ? 'true' : 'false'} onChange={(e) => setForm({ ...form, active: e.target.value === 'true' })}>
                 <option value="true">Yes</option>
                 <option value="false">No (hidden)</option>
               </select>
             </div>
             <div className="md:col-span-2">
               <label className="label">Icon image (optional)</label>
-              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="dept-file-upload"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+                <label
+                  htmlFor="dept-file-upload"
+                  className="btn-secondary py-2 px-3 text-xs font-semibold cursor-pointer"
+                >
+                  Choose File
+                </label>
+                <span className="text-xs text-soft-stone">
+                  {file ? file.name : 'No file chosen'}
+                </span>
+              </div>
             </div>
           </div>
-          {err && <div className="text-sm text-rose-600 mt-3">{err}</div>}
-          <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setEditing(null)} className="btn-secondary">Cancel</button>
-            <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save'}</button>
+          {err && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-lg mt-3 flex items-center gap-1.5">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              {err}
+            </div>
+          )}
+          <div className="flex justify-end gap-2.5 mt-6 border-t border-arctic-mist pt-4">
+            <button onClick={() => setEditing(null)} className="btn-secondary py-2 px-4 text-xs font-semibold">Cancel</button>
+            <button onClick={save} disabled={saving} className="btn-primary py-2 px-4 text-xs font-semibold">{saving ? 'Saving…' : 'Save'}</button>
           </div>
         </Modal>
       )}
@@ -145,11 +189,11 @@ function Input({ label, value, onChange, type = 'text' }) {
 
 function Modal({ children, onClose, title }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="card w-full max-w-2xl p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-brand-900">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button>
+    <div className="fixed inset-0 bg-midnight-pine/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
+      <div className="card w-full max-w-2xl p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-arctic-mist pb-3.5 mb-5">
+          <h2 className="font-semibold text-lg text-midnight-pine font-grenette">{title}</h2>
+          <button onClick={onClose} className="text-soft-stone hover:text-midnight-pine w-8 h-8 rounded-full flex items-center justify-center hover:bg-pale-mint/30 transition-colors duration-150">✕</button>
         </div>
         {children}
       </div>

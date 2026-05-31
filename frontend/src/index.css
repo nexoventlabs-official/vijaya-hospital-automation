@@ -2,24 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root { height: 100%; }
-body { @apply text-slate-800 antialiased; }
+:root {
+  /* Colors */
+  --color-midnight-pine: #061d29;
+  --color-arctic-mist: #e5e7eb;
+  --color-canvas-white: #ffffff;
+  --color-zenith-teal: #006e75;
+  --color-pale-mint: #b9ffe8;
+  --color-pale-amber: #fffded;
+  --color-soft-stone: #425d6d;
+  --color-rose-sunset: #ffb0a4;
+  --gradient-rose-sunset: conic-gradient(rgb(255, 176, 164) 0deg, rgb(255, 73, 44) 0deg, rgb(255, 73, 44) 360deg);
+  --color-warm-berry: #4d0037;
+  --color-soft-magenta: #ffc3e6;
+  --color-ocean-glimmer: #0b978e;
 
-@layer components {
-  .card { @apply bg-white border border-slate-200 rounded-xl shadow-sm; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition; }
-  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
-  .btn-secondary { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
-  .btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
-  .btn-ghost { @apply btn text-slate-700 hover:bg-slate-100; }
-  .input { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-500; }
-  .label { @apply block text-xs font-medium uppercase tracking-wide text-slate-500 mb-1; }
-  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+  /* Typography — Font Families */
+  --font-mint: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-grenette: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+
+  /* Border Radii */
+  --radius-cards: 24px;
+  --radius-buttons: 8px;
+  --radius-elements: 12px;
 }
 
-.status-booked { @apply bg-amber-100 text-amber-800; }
-.status-arrived { @apply bg-amber-200 text-amber-900; }
-.status-completed { @apply bg-emerald-100 text-emerald-800; }
-.status-cancelled { @apply bg-rose-100 text-rose-800; }
-.status-rescheduled { @apply bg-purple-100 text-purple-800; }
-.status-postponed { @apply bg-sky-100 text-sky-800; }
+html, body, #root { height: 100%; }
+body { 
+  font-family: var(--font-mint);
+  @apply text-midnight-pine bg-canvas-white antialiased; 
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-grenette);
+}
+
+@layer components {
+  .card { 
+    @apply bg-canvas-white border border-arctic-mist rounded-cards shadow-none transition-all duration-200; 
+  }
+  
+  .card-accent { 
+    @apply bg-pale-amber border border-arctic-mist rounded-cards shadow-none transition-all duration-200; 
+  }
+
+  .btn { 
+    @apply inline-flex items-center justify-center gap-2 rounded-buttons px-5 py-3 text-sm font-medium font-mint transition-all duration-200 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-zenith-teal/20; 
+  }
+  
+  .btn-primary { 
+    @apply btn bg-zenith-teal text-white hover:bg-ocean-glimmer border border-transparent; 
+  }
+  
+  .btn-secondary { 
+    @apply btn bg-pale-amber text-midnight-pine hover:bg-pale-mint hover:text-midnight-pine border border-arctic-mist; 
+  }
+  
+  .btn-danger { 
+    @apply btn bg-rose-600 text-white hover:bg-rose-700 border border-transparent; 
+  }
+  
+  .btn-ghost { 
+    @apply btn text-soft-stone hover:bg-pale-mint/30 hover:text-midnight-pine border border-transparent; 
+  }
+
+  .input { 
+    @apply block w-full rounded-elements border border-arctic-mist bg-canvas-white px-3.5 py-2.5 text-sm text-midnight-pine placeholder-soft-stone/40 font-mint focus:outline-none focus:ring-2 focus:ring-zenith-teal/20 focus:border-zenith-teal transition-all duration-150; 
+  }
+  
+  .label { 
+    @apply block text-xs font-semibold uppercase tracking-wider text-soft-stone mb-1.5 font-mint; 
+  }
+  
+  .badge { 
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium font-mint border; 
+  }
+}
+
+.status-booked { @apply bg-pale-amber text-amber-800 border-amber-200/60; }
+.status-arrived { @apply bg-pale-mint/40 text-zenith-teal border-pale-mint; }
+.status-completed { @apply bg-emerald-50 text-emerald-800 border-emerald-200/60; }
+.status-cancelled { @apply bg-rose-50 text-rose-800 border-rose-200/60; }
+.status-rescheduled { @apply bg-purple-50 text-purple-800 border-purple-200/60; }
+.status-postponed { @apply bg-sky-50 text-sky-800 border-sky-200/60; }
+

@@ -15,17 +15,17 @@ function statusBadge(s, endsAt) {
   const expired = s === 'active' && new Date(endsAt).getTime() < Date.now();
   const eff = expired ? 'expired' : s;
   const map = {
-    active: 'bg-emerald-100 text-emerald-700',
-    expired: 'bg-slate-100 text-slate-500',
-    cancelled: 'bg-rose-100 text-rose-700',
+    active: 'bg-pale-mint/40 text-zenith-teal border-pale-mint',
+    expired: 'bg-slate-50 text-soft-stone border-arctic-mist',
+    cancelled: 'bg-rose-50 text-rose-800 border-rose-200',
   };
-  return <span className={`badge ${map[eff] || 'bg-slate-100 text-slate-500'}`}>{eff}</span>;
+  return <span className={`badge ${map[eff] || 'bg-slate-50 text-soft-stone border-arctic-mist'}`}>{eff}</span>;
 }
 
 export default function PlanHistory() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
 
   async function load() {
     setLoading(true);
@@ -33,7 +33,7 @@ export default function PlanHistory() {
       const r = await api.get('/billing/history');
       setRows(r.data || []);
     } catch (e) {
-      setMsg('❌ ' + (e.response?.data?.error || 'Failed to load history'));
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Failed to load history' });
     } finally {
       setLoading(false);
     }
@@ -44,83 +44,108 @@ export default function PlanHistory() {
   const totalRevenue = rows.reduce((sum, r) => sum + (r.amount || 0), 0);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-6xl font-mint">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-900">Plan History</h1>
-          <p className="text-sm text-slate-500">Every purchase &amp; renewal — who bought which plan, when it started/expires, and renewal counts.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Plan History</h1>
+          <p className="text-sm text-soft-stone mt-1">Audit trail of administrator subscriptions, billing invoices, and total billing revenues.</p>
         </div>
-        <button onClick={load} className="btn-secondary"><RefreshCw size={16} /> Refresh</button>
+        <button onClick={load} className="btn-secondary py-2.5 px-4 text-xs font-semibold">
+          <RefreshCw size={14} /> Refresh
+        </button>
       </div>
 
-      {msg && <div className="text-sm">{msg}</div>}
+      {msg && (
+        <div className={`p-4 rounded-xl border flex items-center gap-2.5 text-sm font-medium ${
+          msg.type === 'success'
+            ? 'bg-pale-mint/30 border-pale-mint text-zenith-teal'
+            : 'bg-rose-50 border-rose-200 text-rose-800'
+        }`}>
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{msg.text}</span>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card p-4">
-          <div className="text-xs text-slate-500 uppercase">Total Records</div>
-          <div className="text-2xl font-bold text-brand-900">{rows.length}</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card p-5 hover:border-zenith-teal/30 transition-all duration-300">
+          <div className="text-xs font-semibold text-soft-stone uppercase tracking-wider">Total Purchases</div>
+          <div className="text-3xl font-semibold text-midnight-pine mt-2 font-grenette">{rows.length}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-slate-500 uppercase">Total Revenue</div>
-          <div className="text-2xl font-bold text-brand-900">₹{totalRevenue.toLocaleString('en-IN')}</div>
+        <div className="card p-5 hover:border-zenith-teal/30 transition-all duration-300">
+          <div className="text-xs font-semibold text-soft-stone uppercase tracking-wider">Total Revenue</div>
+          <div className="text-3xl font-semibold text-midnight-pine mt-2 font-grenette">₹{totalRevenue.toLocaleString('en-IN')}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-slate-500 uppercase">Active Subscriptions</div>
-          <div className="text-2xl font-bold text-brand-900">
+        <div className="card p-5 hover:border-zenith-teal/30 transition-all duration-300">
+          <div className="text-xs font-semibold text-soft-stone uppercase tracking-wider">Active Licences</div>
+          <div className="text-3xl font-semibold text-midnight-pine mt-2 font-grenette">
             {rows.filter((r) => r.status === 'active' && new Date(r.endsAt).getTime() > Date.now()).length}
           </div>
         </div>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-            <tr>
-              <th className="text-left px-4 py-2">Admin</th>
-              <th className="text-left px-4 py-2">Plan</th>
-              <th className="text-left px-4 py-2">Amount</th>
-              <th className="text-left px-4 py-2">Type</th>
-              <th className="text-left px-4 py-2">Renewed</th>
-              <th className="text-left px-4 py-2">Start</th>
-              <th className="text-left px-4 py-2">Expires</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-left px-4 py-2">Invoice</th>
-              <th className="text-left px-4 py-2">Purchased</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={10} className="px-4 py-6 text-center text-slate-400 animate-pulse">Loading…</td></tr>
-            )}
-            {!loading && rows.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-6 text-center text-slate-400">No purchases yet</td></tr>
-            )}
-            {rows.map((r) => (
-              <tr key={r._id} className="border-t border-slate-100">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-slate-800">{r.adminName || r.adminUsername}</div>
-                  <div className="text-xs text-slate-400">{r.adminEmail || r.adminUsername}</div>
-                </td>
-                <td className="px-4 py-3">{r.planName}</td>
-                <td className="px-4 py-3">₹{Number(r.amount || 0).toLocaleString('en-IN')}</td>
-                <td className="px-4 py-3">
-                  {r.isRenewal
-                    ? <span className="badge bg-purple-100 text-purple-700">Renewal</span>
-                    : <span className="badge bg-sky-100 text-sky-700">New</span>}
-                </td>
-                <td className="px-4 py-3">{r.renewalCount || 0}×</td>
-                <td className="px-4 py-3">{fmtDate(r.startsAt)}</td>
-                <td className="px-4 py-3">{fmtDate(r.endsAt)}</td>
-                <td className="px-4 py-3">{statusBadge(r.status, r.endsAt)}</td>
-                <td className="px-4 py-3">
-                  <div className="text-xs">{r.invoiceNumber || '—'}</div>
-                  {r.invoiceSentTo && <div className="text-[10px] text-emerald-600">emailed</div>}
-                </td>
-                <td className="px-4 py-3 text-xs text-slate-500">{fmtDateTime(r.createdAt)}</td>
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-pale-amber/20 text-midnight-pine border-b border-arctic-mist font-grenette text-xs font-semibold uppercase tracking-wider">
+              <tr>
+                <th className="text-left px-5 py-3">Admin</th>
+                <th className="text-left px-5 py-3">Plan</th>
+                <th className="text-left px-5 py-3">Amount</th>
+                <th className="text-left px-5 py-3">Type</th>
+                <th className="text-left px-5 py-3">Renewals</th>
+                <th className="text-left px-5 py-3">Start Date</th>
+                <th className="text-left px-5 py-3">Expiry Date</th>
+                <th className="text-left px-5 py-3">Status</th>
+                <th className="text-left px-5 py-3">Invoice ID</th>
+                <th className="text-left px-5 py-3">Timestamp</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-arctic-mist/75">
+              {loading && (
+                <tr>
+                  <td colSpan={10} className="px-5 py-8 text-center text-soft-stone animate-pulse">
+                    Loading history…
+                  </td>
+                </tr>
+              )}
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="px-5 py-8 text-center text-soft-stone">
+                    No subscriptions purchased yet
+                  </td>
+                </tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r._id} className="hover:bg-pale-amber/5 transition-colors duration-150">
+                  <td className="px-5 py-4">
+                    <div className="font-semibold text-midnight-pine text-sm font-grenette">{r.adminName || r.adminUsername}</div>
+                    <div className="text-xs text-soft-stone mt-0.5">{r.adminEmail || r.adminUsername}</div>
+                  </td>
+                  <td className="px-5 py-4 text-sm font-medium text-midnight-pine">{r.planName}</td>
+                  <td className="px-5 py-4 font-semibold text-midnight-pine">₹{Number(r.amount || 0).toLocaleString('en-IN')}</td>
+                  <td className="px-5 py-4">
+                    {r.isRenewal ? (
+                      <span className="badge bg-purple-50 text-purple-800 border-purple-200">Renewal</span>
+                    ) : (
+                      <span className="badge bg-sky-50 text-sky-800 border-sky-200">New</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-xs font-mono font-semibold">{r.renewalCount || 0}×</td>
+                  <td className="px-5 py-4 font-mono text-xs">{fmtDate(r.startsAt)}</td>
+                  <td className="px-5 py-4 font-mono text-xs">{fmtDate(r.endsAt)}</td>
+                  <td className="px-5 py-4">{statusBadge(r.status, r.endsAt)}</td>
+                  <td className="px-5 py-4">
+                    <div className="text-xs font-semibold text-midnight-pine">{r.invoiceNumber || '—'}</div>
+                    {r.invoiceSentTo && <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/50 py-0.5 px-1.5 rounded mt-0.5 inline-block font-semibold uppercase">emailed</span>}
+                  </td>
+                  <td className="px-5 py-4 text-xs text-soft-stone font-mono">{fmtDateTime(r.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

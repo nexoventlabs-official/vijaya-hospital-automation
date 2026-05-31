@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Eye, RefreshCw } from 'lucide-react';
+import { Eye, RefreshCw, Search } from 'lucide-react';
 import api from '../api';
 import { subscribe } from '../realtime';
 
@@ -45,66 +45,106 @@ export default function Appointments() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-brand-900">Appointments</h1>
-        <button onClick={syncSheets} className="btn-secondary"><RefreshCw size={14} /> Sync to Sheets</button>
+    <div className="space-y-6 max-w-6xl font-mint">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Appointments</h1>
+          <p className="text-sm text-soft-stone mt-1">Manage and view real-time patient reservations.</p>
+        </div>
+        <button onClick={syncSheets} className="btn-secondary py-2.5 px-4 text-xs font-semibold">
+          <RefreshCw size={14} /> Sync to Sheets
+        </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setSearch({ status: t.key })}
-            className={`btn ${status === t.key ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-        <input className="input ml-auto w-64" placeholder="Search code / patient / doctor…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex flex-wrap gap-4 items-center justify-between bg-pale-amber/10 p-4 rounded-xl border border-arctic-mist">
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setSearch({ status: t.key })}
+              className={`btn py-2 px-4 text-xs font-semibold ${
+                status === t.key
+                  ? 'bg-zenith-teal text-white border border-transparent'
+                  : 'bg-canvas-white text-midnight-pine hover:bg-pale-mint border border-arctic-mist'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative w-72">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-soft-stone/50">
+            <Search size={15} />
+          </span>
+          <input
+            className="input pl-9 py-2 text-xs"
+            placeholder="Search code, patient or doctor…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card overflow-hidden">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="text-left px-4 py-3">Code</th>
-              <th className="text-left px-4 py-3">Date / Time</th>
-              <th className="text-left px-4 py-3">Patient</th>
-              <th className="text-left px-4 py-3">Doctor</th>
-              <th className="text-left px-4 py-3">Fee</th>
-              <th className="text-left px-4 py-3">Payment</th>
-              <th className="text-left px-4 py-3">Status</th>
-              <th className="text-right px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filtered.map((a) => (
-              <tr key={a._id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-xs text-brand-700">{a.code}</td>
-                <td className="px-4 py-3">{a.date} <span className="text-slate-500">{a.timeLabel || a.time}</span></td>
-                <td className="px-4 py-3">
-                  <div className="font-medium">{a.patientName}</div>
-                  <div className="text-xs text-slate-500">+{a.patientPhone}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <div>{a.doctorName}</div>
-                  <div className="text-xs text-slate-500">{a.departmentName}</div>
-                </td>
-                <td className="px-4 py-3">₹{a.fee}</td>
-                <td className="px-4 py-3">
-                  <div>{a.paymentMode === 'online' ? 'Online' : 'At hospital'}</div>
-                  <span className={`text-xs ${a.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>{a.paymentStatus}</span>
-                </td>
-                <td className="px-4 py-3"><span className={`badge status-${a.status}`}>{a.status}</span></td>
-                <td className="px-4 py-3 text-right">
-                  <Link to={`/appointments/${a._id}`} className="btn-ghost"><Eye size={16} /></Link>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-pale-amber/20 text-midnight-pine border-b border-arctic-mist font-grenette text-xs font-semibold uppercase tracking-wider">
+              <tr>
+                <th className="text-left px-6 py-4">Code</th>
+                <th className="text-left px-6 py-4">Date / Time</th>
+                <th className="text-left px-6 py-4">Patient</th>
+                <th className="text-left px-6 py-4">Doctor</th>
+                <th className="text-left px-6 py-4">Fee</th>
+                <th className="text-left px-6 py-4">Payment</th>
+                <th className="text-left px-6 py-4">Status</th>
+                <th className="text-right px-6 py-4"></th>
               </tr>
-            ))}
-            {!loading && !filtered.length && <tr><td colSpan="8" className="py-8 text-center text-slate-500">No appointments.</td></tr>}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-arctic-mist/70">
+              {filtered.map((a) => (
+                <tr key={a._id} className="hover:bg-pale-amber/5 transition-colors duration-150">
+                  <td className="px-6 py-4 font-mono text-xs font-semibold text-zenith-teal">{a.code}</td>
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-midnight-pine">{a.date}</div>
+                    <div className="text-xs text-soft-stone mt-0.5">{a.timeLabel || a.time}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-semibold text-midnight-pine">{a.patientName}</div>
+                    <div className="text-xs text-soft-stone mt-0.5">+{a.patientPhone}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-midnight-pine">{a.doctorName}</div>
+                    <div className="text-xs text-soft-stone mt-0.5">{a.departmentName}</div>
+                  </td>
+                  <td className="px-6 py-4 font-medium text-midnight-pine">₹{a.fee}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs font-semibold text-midnight-pine">
+                      {a.paymentMode === 'online' ? 'Online' : 'Hospital'}
+                    </div>
+                    <span className={`text-[11px] font-medium mt-0.5 block ${a.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {a.paymentStatus}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`badge status-${a.status}`}>{a.status}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Link to={`/appointments/${a._id}`} className="btn-ghost py-1 px-2.5 text-xs">
+                      <Eye size={15} />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {!loading && !filtered.length && (
+                <tr>
+                  <td colSpan="8" className="py-12 text-center text-soft-stone text-sm">
+                    No appointments found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
