@@ -68,9 +68,10 @@ router.post('/link', auth, async (req, res) => {
     const admin = await Admin.findById(req.user.id);
     if (!admin) return res.status(404).json({ error: 'Admin not found' });
 
-    const referenceId = `sub_${admin._id}_${Date.now()}`;
+    // Razorpay caps reference_id at 40 chars. Keep it short + unique; the
+    // callback matches records by razorpay_payment_link_id, not this value.
+    const referenceId = `vh_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     const callbackUrl = `${back}/api/billing/callback`;
-
     const link = await razorpay.createPaymentLink({
       amountRupees: plan.price,
       referenceId,
