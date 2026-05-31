@@ -71,7 +71,7 @@ export default function App() {
           <Route path="plan-history" element={isSuper ? <PlanHistory /> : <Navigate to="/" replace />} />
 
           {/* Admin-only purchase/renew page */}
-          <Route path="purchase" element={!isSuper ? <Purchase /> : <Navigate to="/" replace />} />
+          <Route path="purchase" element={!isSuper ? <Purchase user={auth} /> : <Navigate to="/" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

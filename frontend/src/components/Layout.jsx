@@ -39,6 +39,17 @@ export default function Layout({ user, setAuth }) {
 
   useEffect(() => { ensureOpen(); }, []);
 
+  // Periodically re-validate the session against the backend. If the super
+  // admin deletes or disables this account, the next check returns 401 and the
+  // api interceptor clears the token + redirects to /login automatically —
+  // even if the admin is idle and making no other requests.
+  useEffect(() => {
+    const id = setInterval(() => {
+      api.get('/auth/verify').catch(() => { /* 401 handled by api interceptor */ });
+    }, 30000);
+    return () => clearInterval(id);
+  }, []);
+
   async function loadStatus() {
     if (isSuper) return; // super admin doesn't purchase plans
     try {

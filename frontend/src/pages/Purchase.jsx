@@ -7,7 +7,7 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function Purchase() {
+export default function Purchase({ user }) {
   const [plans, setPlans] = useState([]);
   const [status, setStatus] = useState(null);
   const [config, setConfig] = useState({ configured: false, keyId: '' });
@@ -55,6 +55,15 @@ export default function Purchase() {
         description: `${plan.name} subscription`,
         order_id: data.orderId,
         theme: { color: '#0f48b3' },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.username || '',
+        },
+        readonly: {
+          email: !!user?.email,
+          contact: !!user?.username,
+        },
         handler: async (resp) => {
           try {
             const v = await api.post('/billing/verify', {
