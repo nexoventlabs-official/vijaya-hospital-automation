@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+flow_keys/
+flow-debug.log
+*.log
+coverage/

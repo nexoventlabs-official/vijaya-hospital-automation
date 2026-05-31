@@ -1,0 +1,86 @@
+name: Vijya Hospital CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vijya-hospital/backend/package-lock.json
+      - name: Install
+        working-directory: vijya-hospital/backend
+        run: npm install
+      - name: Run tests
+        working-directory: vijya-hospital/backend
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key-for-ci-pipeline-minimum-32-chars
+          MONGODB_URI: mongodb://localhost:27017/vijya_hospital_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          META_VERIFY_TOKEN: test-verify-token
+        run: npm test
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vijya-hospital/frontend/package-lock.json
+      - name: Install
+        working-directory: vijya-hospital/frontend
+        run: npm install
+      - name: Build
+        working-directory: vijya-hospital/frontend
+        env:
+          VITE_API_URL: /api
+        run: npm run build
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audit backend
+        working-directory: vijya-hospital/backend
+        run: npm audit --audit-level=high || true
+      - name: Audit frontend
+        working-directory: vijya-hospital/frontend
+        run: npm audit --audit-level=high || true
+
+  deploy-notify:
+    name: Deploy Notification
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-build, security-audit]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - run: |
+          echo "🚀 Deploy stage — wire to your provider here"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"

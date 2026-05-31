@@ -1,0 +1,8 @@
+node_modules/
+.env
+flow_keys/
+flow-debug.log
+*.log
+coverage/
+uploads/
+ngrok.*.log
