@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Crown, Check, ShoppingCart, RefreshCw, CalendarClock } from 'lucide-react';
 import api from '../api';
 
@@ -7,13 +8,14 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function Purchase({ user }) {
+export default function Purchase() {
   const [plans, setPlans] = useState([]);
   const [status, setStatus] = useState(null);
-  const [config, setConfig] = useState({ configured: false, keyId: '' });
+  const [config, setConfig] = useState({ configured: false });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState('');
+  const [params, setParams] = useSearchParams();
 
   async function load() {
     setLoading(true);
@@ -34,63 +36,40 @@ export default function Purchase({ user }) {
   }
   useEffect(() => { load(); }, []);
 
+  // Handle the redirect back from Razorpay's hosted payment page.
+  useEffect(() => {
+    const result = params.get('payment');
+    if (!result) return;
+    if (result === 'success') {
+      setMsg('✅ Payment successful! Your plan is now active. If your email is on file, the invoice has been sent.');
+    } else {
+      const reason = params.get('reason');
+      setMsg('❌ Payment was not completed' + (reason ? ` (${reason})` : '') + '. Please try again.');
+    }
+    // Clear the query param and refresh status
+    params.delete('payment');
+    params.delete('reason');
+    setParams(params, { replace: true });
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function buy(plan) {
     setMsg('');
     if (!config.configured) {
       setMsg('❌ Payments are not configured yet. Please contact the platform owner.');
       return;
     }
-    if (!window.Razorpay) {
-      setMsg('❌ Payment library failed to load. Check your connection and refresh.');
-      return;
-    }
     setBusyId(plan.id || plan._id);
     try {
-      const { data } = await api.post('/billing/order', { planId: plan.id || plan._id });
-      const rzp = new window.Razorpay({
-        key: data.keyId,
-        amount: data.amount,
-        currency: data.currency,
-        name: 'Vijya Hospital',
-        description: `${plan.name} subscription`,
-        order_id: data.orderId,
-        theme: { color: '#0f48b3' },
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-          contact: user?.username || '',
-        },
-        readonly: {
-          email: !!user?.email,
-          contact: !!user?.username,
-        },
-        handler: async (resp) => {
-          try {
-            const v = await api.post('/billing/verify', {
-              planId: plan.id || plan._id,
-              razorpay_order_id: resp.razorpay_order_id,
-              razorpay_payment_id: resp.razorpay_payment_id,
-              razorpay_signature: resp.razorpay_signature,
-            });
-            if (v.data?.invoiceEmailed) {
-              setMsg('✅ Payment successful! Your plan is active and the invoice has been emailed to you.');
-            } else {
-              setMsg(`✅ Payment successful! Your plan is active. ${v.data?.invoiceError || 'Invoice email pending.'}`);
-            }
-            await load();
-          } catch (e2) {
-            setMsg('❌ ' + (e2.response?.data?.error || 'Payment verification failed'));
-          } finally {
-            setBusyId(null);
-          }
-        },
-        modal: { ondismiss: () => setBusyId(null) },
-      });
-      rzp.on('payment.failed', (resp) => {
-        setMsg('❌ Payment failed: ' + (resp.error?.description || 'Unknown error'));
+      const { data } = await api.post('/billing/link', { planId: plan.id || plan._id });
+      if (data?.url) {
+        // Redirect to Razorpay's hosted payment page (no domain whitelisting needed).
+        window.location.href = data.url;
+      } else {
+        setMsg('❌ Could not start payment. Please try again.');
         setBusyId(null);
-      });
-      rzp.open();
+      }
     } catch (e) {
       setMsg('❌ ' + (e.response?.data?.error || 'Could not start payment'));
       setBusyId(null);
@@ -177,7 +156,7 @@ export default function Purchase({ user }) {
                 disabled={busyId === id || !config.configured}
                 className="btn-primary mt-auto w-full"
               >
-                {busyId === id ? 'Processing…' : active ? (<><RefreshCw size={16} /> Renew with this plan</>) : (<><ShoppingCart size={16} /> Purchase</>)}
+                {busyId === id ? 'Redirecting…' : active ? (<><RefreshCw size={16} /> Renew with this plan</>) : (<><ShoppingCart size={16} /> Purchase</>)}
               </button>
             </div>
           );

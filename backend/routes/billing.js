@@ -1,18 +1,21 @@
 /**
- * Billing / subscription purchase + renewal.
+ * Billing / subscription purchase + renewal — via Razorpay Payment Links.
  *
- *   GET  /api/billing/config           — Razorpay public key + configured flag
+ *   GET  /api/billing/config           — Razorpay configured flag
  *   GET  /api/billing/status           — current admin's subscription status (premium badge, days left)
- *   POST /api/billing/order            — create a Razorpay order for a chosen plan
- *   POST /api/billing/verify           — verify payment, activate plan, email invoice
+ *   POST /api/billing/link             — create a Razorpay Payment Link for a chosen plan (returns hosted URL)
+ *   GET  /api/billing/callback         — Razorpay redirects here after payment; verifies + activates + emails invoice
  *   GET  /api/billing/history          — super admin: full purchase/renewal history
  *
+ * Payment Links are used instead of the Checkout popup so NO web domain needs
+ * to be registered with Razorpay — the same credentials work on any domain.
  * Razorpay credentials belong to the super admin / platform and live in the
  * backend .env. WhatsApp automation unlocks only after a verified payment.
  */
 const express = require('express');
 const Admin = require('../models/Admin');
 const Plan = require('../models/Plan');
+const PaymentLink = require('../models/PaymentLink');
 const razorpay = require('../services/razorpay');
 const subscriptionSvc = require('../services/subscription');
 const emailSvc = require('../services/email');
@@ -22,12 +25,16 @@ const { auth, requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-/** Public Razorpay key for the Checkout widget. */
+function frontendUrl() {
+  return (process.env.FRONTEND_URL || '').replace(/\/+$/, '') || 'http://localhost:5173';
+}
+function backendUrl() {
+  return (process.env.BACKEND_URL || '').replace(/\/+$/, '');
+}
+
+/** Razorpay availability (no public key needed — payment happens on hosted page). */
 router.get('/config', auth, (req, res) => {
-  res.json({
-    configured: razorpay.isConfigured(),
-    keyId: razorpay.publicKeyId(),
-  });
+  res.json({ configured: razorpay.isConfigured() });
 });
 
 /** Current admin subscription status. */
@@ -40,66 +47,112 @@ router.get('/status', auth, async (req, res) => {
   }
 });
 
-/** Create a Razorpay order for the selected plan. */
-router.post('/order', auth, async (req, res) => {
+/**
+ * Create a Razorpay Payment Link for the selected plan and return the hosted
+ * URL. The frontend redirects the admin there; no domain whitelisting needed.
+ */
+router.post('/link', auth, async (req, res) => {
   try {
     if (!razorpay.isConfigured()) {
       return res.status(400).json({ error: 'Payments are not configured. Contact the platform owner.' });
     }
+    const back = backendUrl();
+    if (!back.startsWith('https://')) {
+      return res.status(400).json({ error: 'BACKEND_URL must be a public HTTPS URL for payment callbacks.' });
+    }
+
     const { planId } = req.body || {};
     const plan = await Plan.findById(planId);
     if (!plan || !plan.active) return res.status(404).json({ error: 'Plan not found' });
 
-    const order = await razorpay.createOrder({
+    const admin = await Admin.findById(req.user.id);
+    if (!admin) return res.status(404).json({ error: 'Admin not found' });
+
+    const referenceId = `sub_${admin._id}_${Date.now()}`;
+    const callbackUrl = `${back}/api/billing/callback`;
+
+    const link = await razorpay.createPaymentLink({
       amountRupees: plan.price,
-      receipt: `sub_${req.user.id}_${Date.now()}`.slice(0, 40),
-      notes: { adminId: String(req.user.id), planCode: plan.code, planName: plan.name },
+      referenceId,
+      description: `${plan.name} subscription — ${admin.name || admin.username}`,
+      customer: { name: admin.name, email: admin.email, contact: admin.phone || admin.username },
+      callbackUrl,
+      notes: { adminId: String(admin._id), planId: String(plan._id), planCode: plan.code },
     });
 
-    res.json({
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      keyId: razorpay.publicKeyId(),
-      plan: { id: plan._id, name: plan.name, price: plan.price, durationDays: plan.durationDays },
+    await PaymentLink.create({
+      razorpayLinkId: link.id,
+      referenceId,
+      shortUrl: link.short_url,
+      admin: admin._id,
+      plan: plan._id,
+      amount: plan.price,
+      status: 'created',
     });
+
+    res.json({ url: link.short_url, linkId: link.id });
   } catch (err) {
-    console.error('[billing] order failed:', err.response?.data || err.message);
+    console.error('[billing] link failed:', err.response?.data || err.message);
     res.status(400).json({ error: err.response?.data?.error?.description || err.message });
   }
 });
 
-/** Verify payment, activate the plan, then email the invoice dynamically. */
-router.post('/verify', auth, async (req, res) => {
+/**
+ * Razorpay redirects the customer here (GET) after the hosted payment page.
+ * We verify the signature, activate the plan, email the invoice, then redirect
+ * the browser back to the frontend Purchase page with a result flag.
+ */
+router.get('/callback', async (req, res) => {
+  const fe = `${frontendUrl()}/purchase`;
   try {
-    const { planId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+    const {
+      razorpay_payment_id,
+      razorpay_payment_link_id,
+      razorpay_payment_link_reference_id,
+      razorpay_payment_link_status,
+      razorpay_signature,
+    } = req.query || {};
 
-    const ok = razorpay.verifyPaymentSignature({
-      orderId: razorpay_order_id,
+    const ok = razorpay.verifyPaymentLinkSignature({
+      paymentLinkId: razorpay_payment_link_id,
+      referenceId: razorpay_payment_link_reference_id,
+      status: razorpay_payment_link_status,
       paymentId: razorpay_payment_id,
       signature: razorpay_signature,
     });
-    if (!ok) return res.status(400).json({ error: 'Payment verification failed' });
+    if (!ok) return res.redirect(`${fe}?payment=failed&reason=signature`);
 
-    const plan = await Plan.findById(planId);
-    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    const record = await PaymentLink.findOne({ razorpayLinkId: razorpay_payment_link_id });
+    if (!record) return res.redirect(`${fe}?payment=failed&reason=unknown_link`);
 
-    const admin = await Admin.findById(req.user.id);
-    if (!admin) return res.status(404).json({ error: 'Admin not found' });
+    // Idempotency — if we already processed this link, just bounce to success.
+    if (record.status === 'processed') return res.redirect(`${fe}?payment=success`);
+
+    if (razorpay_payment_link_status !== 'paid') {
+      record.status = 'failed';
+      await record.save();
+      return res.redirect(`${fe}?payment=failed&reason=not_paid`);
+    }
+
+    const plan = await Plan.findById(record.plan);
+    const admin = await Admin.findById(record.admin);
+    if (!plan || !admin) return res.redirect(`${fe}?payment=failed&reason=missing`);
 
     const sub = await subscriptionSvc.activate({
       admin,
       plan,
       payment: {
-        orderId: razorpay_order_id,
+        orderId: razorpay_payment_link_id,
         paymentId: razorpay_payment_id,
         signature: razorpay_signature,
       },
     });
 
+    record.status = 'processed';
+    record.subscription = sub._id;
+    await record.save();
+
     // Generate + email invoice (best-effort — never store the PDF).
-    let invoiceEmailed = false;
-    let invoiceError = '';
     try {
       if (admin.email && emailSvc.isConfigured()) {
         const settings = await settingsSvc.get();
@@ -113,22 +166,15 @@ router.post('/verify', auth, async (req, res) => {
         sub.invoiceSentTo = admin.email;
         sub.invoiceSentAt = new Date();
         await sub.save();
-        invoiceEmailed = true;
-      } else if (!admin.email) {
-        invoiceError = 'No email on file for this admin.';
-      } else {
-        invoiceError = 'Email service not configured.';
       }
     } catch (mailErr) {
       console.error('[billing] invoice email failed:', mailErr.message);
-      invoiceError = 'Invoice email could not be sent.';
     }
 
-    const status = await subscriptionSvc.statusForAdmin(req.user.id);
-    res.json({ ok: true, subscription: { invoiceNumber: sub.invoiceNumber, endsAt: sub.endsAt }, status, invoiceEmailed, invoiceError });
+    return res.redirect(`${fe}?payment=success`);
   } catch (err) {
-    console.error('[billing] verify failed:', err.message);
-    res.status(400).json({ error: err.message });
+    console.error('[billing] callback failed:', err.message);
+    return res.redirect(`${fe}?payment=failed&reason=error`);
   }
 });
 

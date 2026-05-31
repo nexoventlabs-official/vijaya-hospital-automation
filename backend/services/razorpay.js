@@ -68,4 +68,56 @@ function verifyPaymentSignature({ orderId, paymentId, signature }) {
   }
 }
 
-module.exports = { isConfigured, publicKeyId, createOrder, verifyPaymentSignature };
+/**
+ * Create a Razorpay Payment Link. The customer pays on Razorpay's own hosted
+ * page (rzp.io / razorpay.com), so NO web-domain registration is required —
+ * unlike the Checkout popup. Works across any domain with the same keys.
+ *
+ * @returns {Promise<{id, short_url, reference_id, ...}>}
+ */
+async function createPaymentLink({ amountRupees, referenceId, description, customer = {}, callbackUrl, notes = {} }) {
+  const { keyId, keySecret } = cfg();
+  const body = {
+    amount: Math.round(Number(amountRupees) * 100),
+    currency: 'INR',
+    accept_partial: false,
+    description: description || 'Subscription',
+    reference_id: referenceId,
+    customer: {
+      name: customer.name || undefined,
+      email: customer.email || undefined,
+      contact: customer.contact || undefined,
+    },
+    notify: { sms: false, email: false },
+    reminder_enable: false,
+    notes,
+    callback_url: callbackUrl,
+    callback_method: 'get',
+  };
+  const { data } = await axios.post('https://api.razorpay.com/v1/payment_links', body, {
+    auth: { username: keyId, password: keySecret },
+    timeout: 20000,
+  });
+  return data;
+}
+
+/**
+ * Verify the signature Razorpay appends to the Payment Link callback URL.
+ * signature == HMAC_SHA256(
+ *   payment_link_id + "|" + payment_link_reference_id + "|" + payment_link_status + "|" + razorpay_payment_id,
+ *   key_secret
+ * )
+ */
+function verifyPaymentLinkSignature({ paymentLinkId, referenceId, status, paymentId, signature }) {
+  const { keySecret } = cfg();
+  if (!paymentLinkId || !paymentId || !signature) return false;
+  const payload = `${paymentLinkId}|${referenceId || ''}|${status || ''}|${paymentId}`;
+  const expected = crypto.createHmac('sha256', keySecret).update(payload).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { isConfigured, publicKeyId, createOrder, verifyPaymentSignature, createPaymentLink, verifyPaymentLinkSignature };
