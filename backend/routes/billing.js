@@ -32,6 +32,19 @@ function backendUrl() {
   return (process.env.BACKEND_URL || '').replace(/\/+$/, '');
 }
 
+/**
+ * Normalise an Indian mobile number into the +91XXXXXXXXXX form Razorpay
+ * prefills cleanly. Returns undefined if we can't produce a valid 10-digit
+ * number (so Razorpay won't reject the whole link for a malformed contact).
+ */
+function normalizeContact(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) return `+91${digits.slice(1)}`;
+  return undefined;
+}
+
 /** Razorpay availability (no public key needed — payment happens on hosted page). */
 router.get('/config', auth, (req, res) => {
   res.json({ configured: razorpay.isConfigured() });
@@ -76,7 +89,11 @@ router.post('/link', auth, async (req, res) => {
       amountRupees: plan.price,
       referenceId,
       description: `${plan.name} subscription — ${admin.name || admin.username}`,
-      customer: { name: admin.name, email: admin.email, contact: admin.phone || admin.username },
+      customer: {
+        name: admin.name,
+        email: admin.email,
+        contact: normalizeContact(admin.phone || admin.username),
+      },
       callbackUrl,
       notes: { adminId: String(admin._id), planId: String(plan._id), planCode: plan.code },
     });
