@@ -69,7 +69,7 @@ export default function Layout({ user, setAuth }) {
   const premium = !isSuper && status?.active;
 
   return (
-    <div className="min-h-screen flex font-mint">
+    <div className="h-screen flex font-mint overflow-hidden">
       <aside className="w-60 bg-midnight-pine text-white flex flex-col border-r border-arctic-mist/10">
         <div className="px-5 py-5 border-b border-white/10">
           <div className="font-bold text-lg flex items-center gap-2 font-grenette tracking-wide">
