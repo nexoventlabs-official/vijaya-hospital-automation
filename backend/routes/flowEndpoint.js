@@ -4,7 +4,7 @@
  * Each `data_exchange` action computes the next screen with dynamic data:
  *
  *   INIT                                        →  SERVICE_SELECT
- *   SERVICE_SELECT.service_pick                 →  BOOK_DEPT | MY_APPTS | RESCHEDULE_PICK | CANCEL_PICK | INFO
+ *   SERVICE_SELECT.service_pick                 →  BOOK_DEPT | MY_APPTS | RESCHEDULE_PICK | INFO
  *   BOOK_DEPT.dept_pick                         →  BOOK_DOCTOR
  *   BOOK_DOCTOR.doctor_pick                     →  BOOK_FORM
  *   BOOK_FORM.form_submit                       →  BOOK_PAYMENT (with booking_token)
@@ -97,12 +97,10 @@ async function loadImagesB64() {
     'flow_my_appts_banner',
     'flow_appt_details_banner',
     'flow_reschedule_banner',
-    'flow_cancel_banner',
 
     'icon_book_appointment',
     'icon_my_appointments',
     'icon_reschedule',
-    'icon_cancel',
     'icon_website',
     'icon_contact',
     'icon_pay_at_hospital',
@@ -177,7 +175,6 @@ async function buildServiceSelect(lang, images) {
     withImage({ id: 'book_appointment', title: t('svc_book_appointment', lang), description: t('svc_book_appointment_desc', lang) }, images.icon_book_appointment),
     withImage({ id: 'my_appointments', title: t('svc_my_appointments', lang), description: t('svc_my_appointments_desc', lang) }, images.icon_my_appointments),
     withImage({ id: 'reschedule', title: t('svc_reschedule', lang), description: t('svc_reschedule_desc', lang) }, images.icon_reschedule),
-    withImage({ id: 'cancel', title: t('svc_cancel', lang), description: t('svc_cancel_desc', lang) }, images.icon_cancel),
     withImage({ id: 'website', title: t('svc_website', lang), description: t('svc_website_desc', lang) }, images.icon_website),
     withImage({ id: 'contact', title: t('svc_contact', lang), description: t('svc_contact_desc', lang) }, images.icon_contact),
   ];
@@ -339,10 +336,10 @@ async function buildPaymentScreen(lang, images, formData) {
 }
 
 async function buildMyApptsScreen(lang, images, phone, mode = 'view') {
-  // mode = 'view' | 'reschedule' | 'cancel'
+  // mode = 'view' | 'reschedule'
   const filter = { patientPhone: phone };
   if (mode === 'view') filter.status = { $in: ['booked', 'arrived', 'postponed', 'rescheduled', 'completed', 'cancelled'] };
-  else filter.status = { $in: ['booked', 'arrived', 'postponed'] }; // only pending can be rescheduled/cancelled
+  else filter.status = { $in: ['booked', 'arrived', 'postponed'] }; // only pending can be rescheduled
 
   const appts = await Appointment.find(filter).sort({ date: 1, time: 1 }).limit(20).lean();
   const items = appts.map((a) => ({
@@ -376,16 +373,15 @@ async function buildMyApptsScreen(lang, images, phone, mode = 'view') {
       },
     };
   }
-  // cancel
-  if (!items.length) return buildInfo(lang, t('cancel_heading', lang), t('my_appts_sub_none', lang));
+  // Fallback (no other modes) — show the view list.
   return {
-    screen: 'CANCEL_PICK',
+    screen: 'MY_APPTS',
     data: {
-      banner: images.flow_cancel_banner || '',
-      has_banner: !!images.flow_cancel_banner,
-      heading: t('cancel_heading', lang),
-      subheading: t('cancel_pick_appt', lang),
-      appointments: items,
+      banner: images.flow_my_appts_banner || '',
+      has_banner: !!images.flow_my_appts_banner,
+      heading: t('my_appts_heading', lang),
+      subheading: items.length ? t('my_appts_sub_some', lang) : t('my_appts_sub_none', lang),
+      appointments: items.length ? items : [{ id: 'none', title: '—', description: t('my_appts_sub_none', lang) }],
     },
   };
 }
@@ -491,9 +487,6 @@ router.post('/', async (req, res) => {
               break;
             case 'reschedule':
               response = await buildMyApptsScreen(lang, images, phone, 'reschedule');
-              break;
-            case 'cancel':
-              response = await buildMyApptsScreen(lang, images, phone, 'cancel');
               break;
             case 'website':
             case 'contact':

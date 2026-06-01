@@ -33,7 +33,7 @@ describe('flowJson', () => {
     expect(ids).toContain('BOOK_PAYMENT');
     expect(ids).toContain('MY_APPTS');
     expect(ids).toContain('RESCHEDULE_PICK');
-    expect(ids).toContain('CANCEL_PICK');
+    expect(ids).not.toContain('CANCEL_PICK');
     expect(ids).toContain('INFO');
   });
 });

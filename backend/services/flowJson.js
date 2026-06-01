@@ -15,8 +15,6 @@
  *   RESCHEDULE_PICK →  RESCHEDULE_SLOTS
  *   RESCHEDULE_SLOTS→  COMPLETE   (terminal — webhook performs the reschedule)
  *
- *   CANCEL_PICK     →  COMPLETE   (terminal — webhook cancels)
- *
  * All non-terminal transitions use `data_exchange` so the backend supplies
  * the next screen's data. Terminal screens fire `complete` and the webhook
  * dispatches the appropriate WhatsApp follow-up.
@@ -26,7 +24,7 @@ function buildFlowJSON() {
     version: '7.0',
     data_api_version: '3.0',
     routing_model: {
-      SERVICE_SELECT: ['BOOK_DEPT', 'MY_APPTS', 'RESCHEDULE_PICK', 'CANCEL_PICK', 'INFO'],
+      SERVICE_SELECT: ['BOOK_DEPT', 'MY_APPTS', 'RESCHEDULE_PICK', 'INFO'],
       BOOK_DEPT: ['BOOK_DOCTOR', 'INFO'],
       BOOK_DOCTOR: ['BOOK_FORM', 'INFO'],
       BOOK_FORM: ['BOOK_PAYMENT', 'INFO'],
@@ -35,7 +33,6 @@ function buildFlowJSON() {
       APPT_DETAILS: [],
       RESCHEDULE_PICK: ['RESCHEDULE_SLOTS', 'INFO'],
       RESCHEDULE_SLOTS: [],
-      CANCEL_PICK: [],
       INFO: [],
     },
     screens: [
@@ -558,50 +555,8 @@ function buildFlowJSON() {
         },
       },
 
-      // ─── CANCEL_PICK (terminal) ────────────────────────────────────────
-      {
-        id: 'CANCEL_PICK',
-        title: 'Cancel',
-        terminal: true,
-        success: true,
-        data: {
-          banner: { type: 'string', __example__: '' },
-          has_banner: { type: 'boolean', __example__: false },
-          heading: { type: 'string', __example__: 'Cancel appointment' },
-          subheading: { type: 'string', __example__: '' },
-          appointments: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' } },
-            },
-            __example__: [{ id: 'a1', title: '01 Jun 2026 — 10:00 AM', description: 'Dr. Reddy' }],
-          },
-        },
-        layout: {
-          type: 'SingleColumnLayout',
-          children: [
-            { type: 'Image', src: '${data.banner}', width: 1000, height: 125, 'scale-type': 'cover', 'alt-text': 'Cancel', visible: '${data.has_banner}' },
-            { type: 'TextHeading', text: '${data.heading}' },
-            { type: 'TextBody', text: '${data.subheading}' },
-            {
-              type: 'RadioButtonsGroup',
-              name: 'selected_appt',
-              label: 'Appointments',
-              required: true,
-              'data-source': '${data.appointments}',
-            },
-            {
-              type: 'Footer',
-              label: 'Confirm Cancel',
-              'on-click-action': {
-                name: 'complete',
-                payload: { kind: 'cancel_confirm', selected_appt: '${form.selected_appt}' },
-              },
-            },
-          ],
-        },
-      },
+      // ─── CANCEL_PICK (removed) ─────────────────────────────────────────
+      // Cancel Appointment service was removed from the WhatsApp flow.
 
       // ─── INFO (terminal — generic message) ─────────────────────────────
       {
