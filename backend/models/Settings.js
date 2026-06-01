@@ -25,6 +25,12 @@ const SettingsSchema = new mongoose.Schema(
 
     logoUrl: { type: String, default: '' },
     logoPublicId: { type: String, default: '' },
+
+    /** Stamps overlaid on appointment PDFs based on status. */
+    stampConfirmedUrl: { type: String, default: '' },
+    stampConfirmedPublicId: { type: String, default: '' },
+    stampCompletedUrl: { type: String, default: '' },
+    stampCompletedPublicId: { type: String, default: '' },
   },
   { timestamps: true }
 );

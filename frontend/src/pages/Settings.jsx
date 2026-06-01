@@ -5,8 +5,12 @@ import api from '../api';
 export default function Settings({ user }) {
   const [s, setS] = useState({});
   const [file, setFile] = useState(null);
+  const [stampConfirmed, setStampConfirmed] = useState(null);
+  const [stampCompleted, setStampCompleted] = useState(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
+
+  const isSuper = user?.role === 'superadmin';
 
   // Change-password state
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirm: '' });
@@ -31,10 +35,14 @@ export default function Settings({ user }) {
         if (s[k] !== undefined) fd.append(k, s[k] ?? '');
       });
       if (file) fd.append('logo', file);
+      if (stampConfirmed) fd.append('stampConfirmed', stampConfirmed);
+      if (stampCompleted) fd.append('stampCompleted', stampCompleted);
       const r = await api.put('/settings', fd);
       setS(r.data || {});
       setMsg({ type: 'success', text: 'Settings saved successfully' });
       setFile(null);
+      setStampConfirmed(null);
+      setStampCompleted(null);
       setTimeout(() => setMsg(null), 2000);
     } catch (e) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Save failed' });
@@ -117,6 +125,33 @@ export default function Settings({ user }) {
             </span>
           </div>
         </div>
+
+        {/* Appointment PDF stamps — super admin only */}
+        {isSuper && (
+          <>
+            <div>
+              <label className="label">Appointment Confirmed Stamp</label>
+              <p className="text-[11px] text-soft-stone mb-2">Shown on PDFs once payment is confirmed.</p>
+              {s.stampConfirmedUrl && <img src={s.stampConfirmedUrl} alt="" className="w-20 h-20 rounded-elements object-contain mb-3 border border-arctic-mist bg-white" />}
+              <div className="flex items-center gap-3">
+                <input type="file" accept="image/png,image/jpeg,image/webp" id="stamp-confirmed-upload" className="hidden" onChange={(e) => setStampConfirmed(e.target.files?.[0] || null)} />
+                <label htmlFor="stamp-confirmed-upload" className="btn-secondary py-2 px-3.5 text-xs font-semibold cursor-pointer">Choose Stamp</label>
+                <span className="text-xs text-soft-stone">{stampConfirmed ? stampConfirmed.name : 'No file chosen'}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Consultation Completed Stamp</label>
+              <p className="text-[11px] text-soft-stone mb-2">Shown on PDFs when the appointment is completed.</p>
+              {s.stampCompletedUrl && <img src={s.stampCompletedUrl} alt="" className="w-20 h-20 rounded-elements object-contain mb-3 border border-arctic-mist bg-white" />}
+              <div className="flex items-center gap-3">
+                <input type="file" accept="image/png,image/jpeg,image/webp" id="stamp-completed-upload" className="hidden" onChange={(e) => setStampCompleted(e.target.files?.[0] || null)} />
+                <label htmlFor="stamp-completed-upload" className="btn-secondary py-2 px-3.5 text-xs font-semibold cursor-pointer">Choose Stamp</label>
+                <span className="text-xs text-soft-stone">{stampCompleted ? stampCompleted.name : 'No file chosen'}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {msg && (

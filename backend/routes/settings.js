@@ -12,39 +12,65 @@ router.get('/', auth, async (req, res) => {
   res.json(s);
 });
 
-router.put('/', auth, upload.single('logo'), async (req, res) => {
-  try {
-    const body = req.body || {};
-    const patch = {};
-    [
-      'hospitalName',
-      'hospitalNameTe',
-      'contactPhone',
-      'contactPhoneAlt',
-      'websiteUrl',
-      'addressLine',
-      'addressLineTe',
-      'locationLabel',
-      'googleMapsPlaceId',
-    ].forEach((k) => {
-      if (body[k] !== undefined) patch[k] = body[k];
-    });
-    if (body.locationLat !== undefined) patch.locationLat = parseFloat(body.locationLat) || 0;
-    if (body.locationLng !== undefined) patch.locationLng = parseFloat(body.locationLng) || 0;
+router.put(
+  '/',
+  auth,
+  upload.fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'stampConfirmed', maxCount: 1 },
+    { name: 'stampCompleted', maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const body = req.body || {};
+      const patch = {};
+      [
+        'hospitalName',
+        'hospitalNameTe',
+        'contactPhone',
+        'contactPhoneAlt',
+        'websiteUrl',
+        'addressLine',
+        'addressLineTe',
+        'locationLabel',
+        'googleMapsPlaceId',
+      ].forEach((k) => {
+        if (body[k] !== undefined) patch[k] = body[k];
+      });
+      if (body.locationLat !== undefined) patch.locationLat = parseFloat(body.locationLat) || 0;
+      if (body.locationLng !== undefined) patch.locationLng = parseFloat(body.locationLng) || 0;
 
-    if (req.file) {
+      const files = req.files || {};
       const current = await Settings.findOne({ key: 'main' }).lean();
-      if (current?.logoPublicId) await cloudinary.destroy(current.logoPublicId);
-      const r = await cloudinary.uploadBuffer(req.file.buffer, { folder: 'settings' });
-      patch.logoUrl = r.url;
-      patch.logoPublicId = r.publicId;
-    }
 
-    const updated = await settingsSvc.update(patch);
-    res.json(updated);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+      // Logo
+      if (files.logo?.[0]) {
+        if (current?.logoPublicId) await cloudinary.destroy(current.logoPublicId);
+        const r = await cloudinary.uploadBuffer(files.logo[0].buffer, { folder: 'settings' });
+        patch.logoUrl = r.url;
+        patch.logoPublicId = r.publicId;
+      }
+      // Confirmed stamp
+      if (files.stampConfirmed?.[0]) {
+        if (current?.stampConfirmedPublicId) await cloudinary.destroy(current.stampConfirmedPublicId);
+        const r = await cloudinary.uploadBuffer(files.stampConfirmed[0].buffer, { folder: 'settings' });
+        patch.stampConfirmedUrl = r.url;
+        patch.stampConfirmedPublicId = r.publicId;
+      }
+      // Completed stamp
+      if (files.stampCompleted?.[0]) {
+        if (current?.stampCompletedPublicId) await cloudinary.destroy(current.stampCompletedPublicId);
+        const r = await cloudinary.uploadBuffer(files.stampCompleted[0].buffer, { folder: 'settings' });
+        patch.stampCompletedUrl = r.url;
+        patch.stampCompletedPublicId = r.publicId;
+      }
+
+      const updated = await settingsSvc.update(patch);
+      res.json(updated);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   }
-});
+);
 
 module.exports = router;
