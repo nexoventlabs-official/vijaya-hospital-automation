@@ -73,7 +73,7 @@ async function buildAppointmentPdf({ appointment, settings, title }) {
 
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true });
       const chunks = [];
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -186,26 +186,31 @@ async function buildAppointmentPdf({ appointment, settings, title }) {
       }
 
       // ── Notes ──
-      doc.y += 16;
-      doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(
+      doc.y += 10;
+      doc.font('Helvetica').fontSize(9).fillColor('#334155').text(
         'At the hospital, please contact the Helpdesk for assistance to meet your doctor. You are requested to be present at least 15 minutes before your appointment to complete the necessary paperwork. Please bring your Appointment Code or a printout of this confirmation while coming for consultation.',
-        margin, doc.y, { width: contentWidth, align: 'left', lineGap: 3 }
+        margin, doc.y, { width: contentWidth, align: 'left', lineGap: 2 }
       );
-      doc.moveDown(0.8);
-      doc.font('Helvetica').fontSize(9.5).fillColor('#334155')
+      doc.moveDown(0.5);
+      doc.font('Helvetica').fontSize(9).fillColor('#334155')
         .text(`Thank you for choosing ${hospitalName}. Wishing you good health.`, { width: contentWidth });
-      doc.moveDown(0.4);
-      doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#0f172a').text('Administrator', { width: contentWidth });
+      doc.moveDown(0.3);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Administrator', { width: contentWidth });
 
       // ── Disclaimer ──
-      doc.moveDown(1);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Disclaimer: ', margin, doc.y, { continued: true });
+      doc.moveDown(0.6);
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a').text('Disclaimer: ', margin, doc.y, { continued: true });
       doc.font('Helvetica').fillColor('#64748b').text(
         `${hospitalName} will make all efforts to honour the appointment. However, in the event of any unforeseen circumstances beyond our control, the appointment may be delayed or rescheduled. A new appointment date and/or time, according to the patient's convenience and availability of the slot with the same specialist, or a new specialist, will be proposed.`,
-        { width: contentWidth, lineGap: 2 }
+        { width: contentWidth, lineGap: 1.5 }
       );
 
-      // ── Status stamp overlay (bottom-right) ──
+      // ── Status stamp overlay + footer — always on the FIRST page ──
+      // Switch back to page 0 so the absolutely-positioned stamp/footer never
+      // spill onto an extra page if the content runs long.
+      const range = doc.bufferedPageRange(); // { start, count }
+      doc.switchToPage(range.start);
+
       if (stampBuf) {
         try {
           const stampSize = 120;
@@ -219,9 +224,16 @@ async function buildAppointmentPdf({ appointment, settings, title }) {
         } catch {}
       }
 
-      // ── Footer line ──
       doc.fontSize(8).fillColor('#94a3b8').font('Helvetica')
-        .text(`Generated on ${new Date().toLocaleString('en-GB')}`, margin, doc.page.height - 36, { width: contentWidth, align: 'center' });
+        .text(
+          `Generated on ${new Date().toLocaleString('en-GB')}`,
+          margin,
+          doc.page.height - margin - 12,
+          { width: contentWidth, align: 'center', lineBreak: false }
+        );
+
+      // Drop any accidental trailing blank pages beyond the first.
+      doc.flushPages();
 
       doc.end();
     } catch (err) {
