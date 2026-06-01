@@ -56,22 +56,35 @@ function verifySignature(req) {
 /* ─── Meta Native WhatsApp Pay — payment status callback ──────────────── */
 /**
  * After a patient pays via the order_details "Review and Pay" message, Meta
- * sends an inbound interactive message of type `payment`. Field locations have
- * varied across Meta API versions, so we read defensively.
+ * sends a payment-status notification. Depending on API version this arrives
+ * either as a top-level message `{ type: 'payment', payment: {...} }` or nested
+ * under `interactive`. We read defensively from all known locations.
  */
 async function handlePaymentInteractive(msg) {
-  const pay = msg.interactive?.payment || {};
+  // Payment object can live at msg.payment (top-level) or msg.interactive.payment.
+  const pay = msg.payment || msg.interactive?.payment || {};
   const referenceId =
     pay.reference_id ||
     pay.referenceId ||
     pay.transaction?.reference_id ||
-    msg.interactive?.payment_status?.reference_id;
+    msg.interactive?.payment_status?.reference_id ||
+    msg.referral?.reference_id;
   const status = String(
-    pay.status || pay.transaction?.status || msg.interactive?.payment_status?.status || ''
+    pay.status ||
+      pay.transaction?.status ||
+      pay.payment_status ||
+      msg.interactive?.payment_status?.status ||
+      ''
   ).toLowerCase();
-  const paymentId = pay.transaction?.id || pay.transaction_id || pay.payment_id || '';
+  const paymentId =
+    pay.transaction?.id ||
+    pay.transaction?.reference_id ||
+    pay.transaction_id ||
+    pay.payment_id ||
+    pay.id ||
+    '';
 
-  console.log('[webhook] payment interactive', { referenceId, status, paymentId });
+  console.log('[webhook] payment notification', { referenceId, status, paymentId, rawPayment: JSON.stringify(pay) });
 
   if (!referenceId) return false;
 
@@ -84,9 +97,19 @@ async function handlePaymentInteractive(msg) {
   const phone = chatbot.normPhone(msg.from);
   const lang = await chatbot.getLanguage(phone);
 
-  if (['captured', 'success', 'successful', 'paid', 'completed'].includes(status)) {
+  if (['captured', 'success', 'successful', 'paid', 'completed', 'authorized'].includes(status)) {
     await markApptPaid(appt, { paymentId, metaPaymentStatus: status, source: 'meta_native_pay' });
-  } else if (['failed', 'cancelled', 'canceled', 'declined'].includes(status)) {
+    // Flip the order_details card from "Pay now" to a completed state.
+    try {
+      await meta.sendOrderStatus(phone, {
+        referenceId: appt.metaReferenceId || `APPT-${appt._id}`,
+        status: 'completed',
+        description: 'Payment received',
+      });
+    } catch (err) {
+      console.warn('[webhook] order_status update failed:', err.response?.data || err.message);
+    }
+  } else if (['failed', 'cancelled', 'canceled', 'declined', 'error'].includes(status)) {
     appt.metaPaymentStatus = status;
     await appt.save();
     try { await meta.sendText(phone, t('pay_failed_body', lang)); } catch {}
@@ -145,6 +168,11 @@ async function handleFlowCompletion(msg) {
         // WhatsApp. The confirmation PDF is sent only after payment succeeds.
         const wantsOnline = payload.payment_mode === 'online';
         if (wantsOnline && chatbot.nativePayConfigured() && (appt.fee || 0) > 0) {
+          // Persist the Meta reference so the payment-status webhook resolves
+          // back to this appointment reliably.
+          appt.metaReferenceId = `APPT-${appt._id}`;
+          appt.metaPaymentStatus = 'pending';
+          await appt.save();
           await chatbot.sendPaymentRequest(phone, appt.toObject(), lang);
         } else {
           await chatbot.sendAppointmentPdf(phone, appt.toObject(), lang);
@@ -217,11 +245,36 @@ router.post('/meta', async (req, res) => {
     const body = req.body || {};
     if (body.object !== 'whatsapp_business_account') return;
 
+    // Diagnostic: log any payload that mentions payment so we can see Meta's
+    // exact shape in Render logs while validating the native-pay flow.
+    try {
+      const raw = JSON.stringify(body);
+      if (raw.includes('payment') || raw.includes('order')) {
+        console.log('[webhook] RAW payment-related payload:', raw);
+      }
+    } catch {}
+
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value || {};
         const messages = value.messages || [];
         const contacts = value.contacts || [];
+
+        // Some Meta API versions deliver WhatsApp Pay status updates in the
+        // `statuses` array (with a `payment`/`order` object) rather than as an
+        // inbound message. Handle those here.
+        for (const st of value.statuses || []) {
+          if (st.payment || st.type === 'payment' || st.order) {
+            console.log('[webhook] payment status entry:', JSON.stringify(st));
+            const automationOn = await subscriptionSvc.isAutomationEnabled();
+            if (!automationOn) continue;
+            try {
+              await handlePaymentInteractive({ from: st.recipient_id || st.from, payment: st.payment || st.order });
+            } catch (err) {
+              console.error('[webhook] payment status handler failed:', err.message);
+            }
+          }
+        }
 
         for (const msg of messages) {
           const from = msg.from;
@@ -229,6 +282,21 @@ router.post('/meta', async (req, res) => {
           let text = '';
           const type = msg.type;
           let interactive;
+
+          // Native WhatsApp Pay status can arrive as a top-level message type
+          // `payment` (not nested under interactive). Handle it first.
+          if (msg.type === 'payment' || msg.payment) {
+            console.log('[webhook] inbound payment-type message:', JSON.stringify(msg));
+            const automationOn = await subscriptionSvc.isAutomationEnabled();
+            if (!automationOn) continue;
+            try {
+              const handled = await handlePaymentInteractive(msg);
+              if (handled) continue;
+            } catch (err) {
+              console.error('[webhook] payment handler failed:', err.message);
+            }
+            continue;
+          }
 
           if (msg.type === 'text') text = msg.text?.body || '';
           else if (msg.type === 'interactive') {

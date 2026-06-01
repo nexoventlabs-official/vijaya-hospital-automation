@@ -328,6 +328,41 @@ async function sendOrderDetails(to, opts) {
   return data;
 }
 
+/**
+ * Send an order_status update so the patient's order_details card reflects the
+ * new payment state (e.g. flips "Pay now" → paid/processing/completed).
+ *
+ * @param {string} to
+ * @param {object} opts
+ * @param {string} opts.referenceId   the same reference_id used in sendOrderDetails
+ * @param {string} opts.status        'processing' | 'partially_shipped' | 'shipped' | 'completed' | 'canceled'
+ * @param {string} [opts.description]
+ */
+async function sendOrderStatus(to, { referenceId, status = 'completed', description }) {
+  const { baseUrl, accessToken } = cfg();
+  const phone = String(to).replace(/\D/g, '');
+  if (!referenceId) throw new Error('sendOrderStatus: referenceId required');
+
+  const interactive = {
+    type: 'order_status',
+    body: { text: description || 'Payment received' },
+    action: {
+      name: 'review_order',
+      parameters: {
+        reference_id: String(referenceId),
+        order: { status },
+      },
+    },
+  };
+
+  const { data } = await api.post(
+    `${baseUrl}/messages`,
+    { messaging_product: 'whatsapp', recipient_type: 'individual', to: phone, type: 'interactive', interactive },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  return data;
+}
+
 /* ─── Flow management (used by setup scripts) ──────────────────────────── */
 
 async function createFlow(name, categories = ['OTHER'], { endpointUri } = {}) {
@@ -407,6 +442,7 @@ module.exports = {
   sendCtaUrl,
   sendFlowMessage,
   sendOrderDetails,
+  sendOrderStatus,
   uploadMedia,
   createFlow,
   updateFlowJSON,
