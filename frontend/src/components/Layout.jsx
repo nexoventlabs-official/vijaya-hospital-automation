@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Stethoscope, CalendarOff, Image as ImageIcon,
   Settings as SettingsIcon, LogOut, UserPlus, CreditCard, Receipt, Crown, ShoppingCart,
+  Menu, X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../api';
@@ -36,6 +37,7 @@ export default function Layout({ user, setAuth }) {
   const isSuper = user?.role === 'superadmin';
   const NAV = isSuper ? SUPER_NAV : ADMIN_NAV;
   const [status, setStatus] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { ensureOpen(); }, []);
 
@@ -69,14 +71,35 @@ export default function Layout({ user, setAuth }) {
   const premium = !isSuper && status?.active;
 
   return (
-    <div className="h-screen flex font-mint overflow-hidden">
-      <aside className="w-60 bg-midnight-pine text-white flex flex-col border-r border-arctic-mist/10">
-        <div className="px-5 py-5 border-b border-white/10">
-          <div className="font-bold text-lg flex items-center gap-2 font-grenette tracking-wide">
-            Vijya Hospital
-            {premium && <Crown size={16} className="text-pale-mint fill-pale-mint" title="Premium — active plan" />}
+    <div className="h-screen flex font-mint overflow-hidden relative">
+      {/* Mobile Sidebar Backdrop overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-60 bg-midnight-pine text-white flex flex-col border-r border-arctic-mist/10 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <div className="font-bold text-lg flex items-center gap-2 font-grenette tracking-wide">
+              Vijya Hospital
+              {premium && <Crown size={16} className="text-pale-mint fill-pale-mint" title="Premium — active plan" />}
+            </div>
+            <div className="text-xs text-soft-stone mt-1">{isSuper ? 'Super Admin Panel' : 'Admin Panel'}</div>
           </div>
-          <div className="text-xs text-soft-stone mt-1">{isSuper ? 'Super Admin Panel' : 'Admin Panel'}</div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1.5 rounded-lg text-arctic-mist/80 hover:bg-white/5 hover:text-white transition-colors"
+          >
+            <X size={18} />
+          </button>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-auto">
           {NAV.map(({ to, label, icon: Icon, end }) => (
@@ -84,6 +107,7 @@ export default function Layout({ user, setAuth }) {
               key={to}
               to={to}
               end={end}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                   isActive
@@ -110,36 +134,57 @@ export default function Layout({ user, setAuth }) {
           </button>
         </div>
       </aside>
+
+      {/* Main Content Area */}
       <main className="flex-1 bg-canvas-white overflow-auto flex flex-col text-midnight-pine">
-        {/* Top bar — purchase / plan status (admins only) */}
-        {!isSuper && (
-          <div className="sticky top-0 z-10 bg-canvas-white border-b border-arctic-mist px-6 py-3 flex items-center justify-end gap-3">
-            {status?.active ? (
-              <div className="flex items-center gap-3">
-                <span className="badge bg-pale-mint/40 text-zenith-teal border-pale-mint inline-flex items-center gap-1.5 px-3 py-1 font-semibold">
-                  <Crown size={13} className="fill-zenith-teal" /> Premium
-                </span>
-                <span className="text-sm text-soft-stone">
-                  {status.plan?.planName} · <strong>{status.daysLeft}</strong> day{status.daysLeft === 1 ? '' : 's'} left
-                </span>
-                <button onClick={() => nav('/purchase')} className="btn-secondary py-1.5 px-3.5 text-xs font-semibold">
-                  <CreditCard size={14} /> Renew
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-rose-600 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
-                  No active plan — WhatsApp automation is off
-                </span>
-                <button onClick={() => nav('/purchase')} className="btn-primary py-1.5 px-3.5 text-xs font-semibold">
-                  <ShoppingCart size={14} /> Purchase
-                </button>
-              </div>
+        {/* Header / Top bar */}
+        <div className={`sticky top-0 z-30 bg-canvas-white border-b border-arctic-mist px-6 py-3 flex items-center justify-between gap-3 ${isSuper ? 'lg:hidden' : ''}`}>
+          {/* Left: Mobile hamburger menu toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-2 rounded-lg text-soft-stone hover:bg-arctic-mist/40 transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="font-bold text-base font-grenette tracking-wide text-midnight-pine lg:hidden">
+              Vijya Hospital
+            </span>
+          </div>
+
+          {/* Right: Premium / plan status (admins only) */}
+          <div className="flex items-center gap-3">
+            {!isSuper && (
+              status?.active ? (
+                <div className="flex items-center gap-3">
+                  <span className="badge bg-pale-mint/40 text-zenith-teal border-pale-mint inline-flex items-center gap-1.5 px-3 py-1 font-semibold">
+                    <Crown size={13} className="fill-zenith-teal" /> Premium
+                  </span>
+                  <span className="text-sm text-soft-stone hidden sm:inline">
+                    {status.plan?.planName} · <strong>{status.daysLeft}</strong> day{status.daysLeft === 1 ? '' : 's'} left
+                  </span>
+                  <button onClick={() => nav('/purchase')} className="btn-secondary py-1.5 px-3.5 text-xs font-semibold">
+                    <CreditCard size={14} /> Renew
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-rose-600 font-medium flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                    <span className="hidden sm:inline">No active plan — WhatsApp automation is off</span>
+                    <span className="sm:hidden">Automation Off</span>
+                  </span>
+                  <button onClick={() => nav('/purchase')} className="btn-primary py-1.5 px-3.5 text-xs font-semibold">
+                    <ShoppingCart size={14} /> Purchase
+                  </button>
+                </div>
+              )
             )}
           </div>
-        )}
-        <div className="p-8 flex-1">
+        </div>
+
+        {/* Content body with responsive spacing */}
+        <div className="p-4 sm:p-8 flex-1">
           <Outlet />
         </div>
       </main>
