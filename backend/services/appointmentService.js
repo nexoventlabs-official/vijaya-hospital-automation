@@ -73,7 +73,10 @@ async function _moveToTerminalSheet(appt) {
 }
 
 async function _invalidateCaches() {
+  // Clear both the appointments list cache AND the dashboard stats cache so
+  // realtime SSE reloads return fresh data immediately (no 15s staleness).
   await redis.delPattern('vh:cache:appointments:*');
+  await redis.del('vh:cache:dashboard:stats');
 }
 
 /* ────────────────────────────── Booking ──────────────────────────────── */

@@ -14,6 +14,7 @@
 const Appointment = require('../models/Appointment');
 const sheets = require('./googleSheets');
 const realtime = require('./realtime');
+const redis = require('./redis');
 const chatbot = require('./chatbot');
 
 /**
@@ -62,6 +63,10 @@ async function markApptPaid(appt, opts = {}) {
   }
 
   await realtime.emit('appointments', { kind: 'payment_updated', code: appt.code });
+
+  // Invalidate caches so admin panel reflects the paid status immediately.
+  redis.delPattern('vh:cache:appointments:*').catch(() => {});
+  redis.del('vh:cache:dashboard:stats').catch(() => {});
 
   // WhatsApp confirmation (non-blocking)
   (async () => {
