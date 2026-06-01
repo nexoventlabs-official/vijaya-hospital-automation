@@ -162,18 +162,19 @@ async function sendPaymentSuccess(phone, appointment, lang) {
   await sendAppointmentPdf(phone, appointment, lang);
 }
 
-/** "Pay at Hospital" / online: send PDF + Get Directions CTA. */
+/** "Pay at Hospital" / online: single message — PDF (as header) + directions CTA. */
 async function sendAppointmentPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
-  const headerImageUrl = await flowImages.getUrl('chat_appointment_pdf_header');
 
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Confirmation');
+  const directions = settingsSvc.directionsUrl(settings);
 
-  // Step 1 — send the PDF as a document message
-  await meta.sendDocument(phone, {
-    mediaId,
-    filename,
-    caption: t('appt_pdf_body', lang, {
+  // Single cta_url message: the appointment PDF is the document header, the
+  // confirmation text is the body, and "Get Directions" is the CTA button.
+  await meta.sendCtaUrl(phone, {
+    headerDocumentMediaId: mediaId,
+    headerDocumentFilename: filename,
+    bodyText: t('appt_pdf_body', lang, {
       code: appointment.code,
       doctor: appointment.doctorName,
       date: appointment.date,
@@ -181,16 +182,6 @@ async function sendAppointmentPdf(phone, appointment, lang) {
       fee: appointment.fee || 0,
       payMode: appointment.paymentMode === 'online' ? t('pay_mode_online', lang) : t('pay_mode_at_hospital', lang),
     }),
-  });
-
-  // Step 2 — directions CTA
-  const directions = settingsSvc.directionsUrl(settings);
-  await meta.sendCtaUrl(phone, {
-    headerImageUrl: headerImageUrl || undefined,
-    headerText: !headerImageUrl ? 'Hospital Location' : undefined,
-    bodyText: settings?.addressLine
-      ? `${settings.hospitalName}\n${settings.addressLine}`
-      : settings?.hospitalName || 'Vijya Hospital',
     footerText: settings?.hospitalName || 'Vijya Hospital',
     ctaText: t('directions_cta', lang),
     ctaUrl: directions,
@@ -200,22 +191,16 @@ async function sendAppointmentPdf(phone, appointment, lang) {
 async function sendRescheduledPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Rescheduled');
-  await meta.sendDocument(phone, {
-    mediaId,
-    filename,
-    caption: t('reschedule_pdf_body', lang, {
+  const directions = settingsSvc.directionsUrl(settings);
+  await meta.sendCtaUrl(phone, {
+    headerDocumentMediaId: mediaId,
+    headerDocumentFilename: filename,
+    bodyText: t('reschedule_pdf_body', lang, {
       code: appointment.code,
       doctor: appointment.doctorName,
       date: appointment.date,
       time: appointment.timeLabel || appointment.time,
     }),
-  });
-  const directions = settingsSvc.directionsUrl(settings);
-  await meta.sendCtaUrl(phone, {
-    headerText: 'Hospital Location',
-    bodyText: settings?.addressLine
-      ? `${settings.hospitalName}\n${settings.addressLine}`
-      : settings?.hospitalName || 'Vijya Hospital',
     footerText: settings?.hospitalName || 'Vijya Hospital',
     ctaText: t('directions_cta', lang),
     ctaUrl: directions,
@@ -241,30 +226,30 @@ async function sendCancelledPdf(phone, appointment, lang) {
 async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
   const settings = await settingsSvc.get();
   const { mediaId, filename } = await uploadAppointmentPdf(newAppt || oldAppt, settings, 'Appointment Postponed');
-  await meta.sendDocument(phone, {
-    mediaId,
-    filename,
-    caption: t('postpone_message_body', lang, {
-      code: (newAppt || oldAppt).code,
-      doctor: oldAppt.doctorName,
-      oldDate: oldAppt.date,
-      oldTime: oldAppt.timeLabel || oldAppt.time,
-      newDate: newAppt ? newAppt.date : '—',
-      newTime: newAppt ? newAppt.timeLabel || newAppt.time : '—',
-      reason: oldAppt.postponeReason || 'Doctor unavailable',
-    }),
+  const caption = t('postpone_message_body', lang, {
+    code: (newAppt || oldAppt).code,
+    doctor: oldAppt.doctorName,
+    oldDate: oldAppt.date,
+    oldTime: oldAppt.timeLabel || oldAppt.time,
+    newDate: newAppt ? newAppt.date : '—',
+    newTime: newAppt ? newAppt.timeLabel || newAppt.time : '—',
+    reason: oldAppt.postponeReason || 'Doctor unavailable',
   });
+
   if (newAppt) {
+    // Single message — PDF header + postpone details + directions CTA.
     const directions = settingsSvc.directionsUrl(settings);
     await meta.sendCtaUrl(phone, {
-      headerText: 'Hospital Location',
-      bodyText: settings?.addressLine
-        ? `${settings.hospitalName}\n${settings.addressLine}`
-        : settings?.hospitalName || 'Vijya Hospital',
+      headerDocumentMediaId: mediaId,
+      headerDocumentFilename: filename,
+      bodyText: caption,
       footerText: settings?.hospitalName || 'Vijya Hospital',
       ctaText: t('directions_cta', lang),
       ctaUrl: directions,
     });
+  } else {
+    // No new slot — just the PDF with the postpone note.
+    await meta.sendDocument(phone, { mediaId, filename, caption });
   }
 }
 
