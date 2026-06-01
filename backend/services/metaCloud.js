@@ -234,7 +234,7 @@ async function sendFlowMessage(to, options) {
  * @param {number} [opts.totalAmount]        total in major units (₹)
  * @param {string} [opts.currency='INR']
  * @param {number} [opts.offset=100]
- * @param {string} [opts.orderType='services']
+ * @param {string} [opts.orderType='digital-goods']  Meta CTA type: digital-goods | physical-goods
  * @param {object} [opts.notes]
  */
 async function sendOrderDetails(to, opts) {
@@ -254,7 +254,7 @@ async function sendOrderDetails(to, opts) {
     tax,
     currency = 'INR',
     offset = 100,
-    orderType = 'services',
+    orderType = 'digital-goods',
     notes,
   } = opts;
 
