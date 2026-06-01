@@ -262,7 +262,7 @@ async function buildDoctorScreen(lang, images, departmentId) {
 async function buildFormScreen(lang, images, doctorId, departmentId, phone) {
   const doctor = await Doctor.findById(doctorId).lean();
   if (!doctor) return buildInfo(lang, 'Error', 'Doctor not found.');
-  const slots = await slotsSvc.listAvailableSlots(doctor, { days: 14 });
+  const slots = await slotsSvc.listAvailableSlots(doctor, { days: 14, skipToday: true });
   if (!slots.length) return buildInfo(lang, t('flow_pick_doctor', lang), t('no_slots', lang));
 
   // patient lookup for prefill
@@ -420,7 +420,7 @@ async function buildRescheduleSlotsScreen(lang, images, apptId) {
   if (!a) return buildInfo(lang, 'Error', 'Appointment not found.');
   const doc = await Doctor.findById(a.doctor).lean();
   if (!doc) return buildInfo(lang, 'Error', 'Doctor not available.');
-  const slots = await slotsSvc.listAvailableSlots(doc, { days: 21, excludeAppointmentId: apptId });
+  const slots = await slotsSvc.listAvailableSlots(doc, { days: 21, excludeAppointmentId: apptId, skipToday: true });
   if (!slots.length) return buildInfo(lang, t('reschedule_heading', lang), t('reschedule_no_slots', lang));
   return {
     screen: 'RESCHEDULE_SLOTS',

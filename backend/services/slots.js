@@ -61,18 +61,25 @@ function expandSlotsForDate(doctor, date) {
   return out;
 }
 
-async function listAvailableSlots(doctor, { fromDate, days = 14, excludeAppointmentId } = {}) {
+async function listAvailableSlots(doctor, { fromDate, days = 14, excludeAppointmentId, skipToday = false } = {}) {
   const start = fromDate ? new Date(`${fromDate}T00:00:00`) : new Date();
   start.setHours(0, 0, 0, 0);
+  // When skipToday is set (and no explicit fromDate), begin from tomorrow so
+  // today's date never appears as a bookable slot.
+  if (skipToday && !fromDate) {
+    start.setDate(start.getDate() + 1);
+  }
 
   const holidays = new Set((await Holiday.find().lean()).map((h) => h.date));
   const absentDates = new Set((doctor.absences || []).map((a) => a.date));
 
+  const todayKey = ymd(new Date());
   const dates = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const key = ymd(d);
+    if (skipToday && key === todayKey) continue; // never offer today
     if (holidays.has(key)) continue;
     if (absentDates.has(key)) continue;
     dates.push(key);
