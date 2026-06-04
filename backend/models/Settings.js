@@ -17,9 +17,8 @@ const SettingsSchema = new mongoose.Schema(
     addressLine: { type: String, default: '' },
     addressLineTe: { type: String, default: '' },
 
-    /** Used to build Google Maps "directions" URL from the patient location. */
-    locationLat: { type: Number, default: 0 },
-    locationLng: { type: Number, default: 0 },
+    /** Google Maps link for "Get Directions" — paste the share URL from Google Maps. */
+    googleMapsUrl: { type: String, default: '' },
     locationLabel: { type: String, default: '' },
     googleMapsPlaceId: { type: String, default: '' },
 

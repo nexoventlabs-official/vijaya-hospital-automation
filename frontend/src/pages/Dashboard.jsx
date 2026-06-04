@@ -16,18 +16,22 @@ const cards = [
 export default function Dashboard() {
   const [data, setData] = useState({ stats: {}, recent: [] });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  async function load() {
+  async function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const r = await api.get('/dashboard/stats');
       setData(r.data);
     } catch {}
     setLoading(false);
+    setRefreshing(false);
   }
 
   useEffect(() => {
     load();
-    const off = subscribe('appointments', () => load());
+    const off = subscribe('appointments', () => load(true));
     return off;
   }, []);
 
@@ -44,11 +48,15 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-soft-stone">{label}</div>
-                <div className="text-3xl font-semibold text-midnight-pine mt-2 font-grenette">
-                  {loading ? '…' : (data.stats?.[key] ?? 0)}
+                <div className={`text-3xl font-semibold text-midnight-pine mt-2 font-grenette transition-opacity duration-300 ${refreshing ? 'opacity-40' : 'opacity-100'}`}>
+                  {loading ? (
+                    <span className="inline-block w-10 h-8 bg-arctic-mist/60 rounded animate-pulse" />
+                  ) : (
+                    data.stats?.[key] ?? 0
+                  )}
                 </div>
               </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${color}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${color} ${refreshing ? 'animate-pulse' : ''}`}>
                 <Icon size={20} />
               </div>
             </div>

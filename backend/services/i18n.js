@@ -122,20 +122,16 @@ const STRINGS = {
     en:
       '🩺 *Appointment Confirmed*\n\n' +
       'Code: *{code}*\nDoctor: *{doctor}*\nDate: *{date} at {time}*\nFee: ₹{fee} ({payMode})\n\n' +
-      'Tap *Get Directions* below to navigate to the hospital.',
+      '{directions}',
     te:
       '🩺 *అపాయింట్‌మెంట్ నిర్ధారించబడింది*\n\n' +
       'కోడ్: *{code}*\nడాక్టర్: *{doctor}*\nతేదీ: *{date} {time}*\nఫీజు: ₹{fee} ({payMode})\n\n' +
-      'హాస్పిటల్‌కు దారి కోసం కింద *Get Directions* నొక్కండి.',
+      '{directions}',
   },
   appt_pdf_filename: { en: 'Appointment-{code}.pdf', te: 'Appointment-{code}.pdf' },
   pay_mode_at_hospital: { en: 'Pay at Hospital', te: 'హాస్పిటల్‌లో చెల్లించండి' },
   pay_mode_online: { en: 'Online (Paid)', te: 'ఆన్‌లైన్ (చెల్లించబడింది)' },
   directions_cta: { en: 'Get Directions', te: 'దారి చూపండి' },
-  directions_body: {
-    en: '📍 Tap *Get Directions* below to navigate to the hospital.',
-    te: '📍 హాస్పిటల్‌కు దారి కోసం కింద *Get Directions* నొక్కండి.',
-  },
 
   // ─── Online payment (Meta Native WhatsApp Pay) ─────────────────────────
   pay_request_body: {
@@ -169,11 +165,11 @@ const STRINGS = {
     en:
       '🔄 *Appointment Rescheduled*\n\n' +
       'Code: *{code}*\nDoctor: *{doctor}*\nNew date: *{date} at {time}*\n\n' +
-      'Tap *Get Directions* to navigate.',
+      '{directions}',
     te:
       '🔄 *అపాయింట్‌మెంట్ రీషెడ్యూల్ చేయబడింది*\n\n' +
       'కోడ్: *{code}*\nడాక్టర్: *{doctor}*\nకొత్త తేదీ: *{date} {time}*\n\n' +
-      'దారి కోసం *Get Directions* నొక్కండి.',
+      '{directions}',
   },
 
   cancel_pdf_body: {
@@ -192,12 +188,12 @@ const STRINGS = {
       '⚠️ *Appointment Postponed*\n\n' +
       'Code: *{code}*\nDoctor: *{doctor}*\n\n' +
       'Old date: *{oldDate} at {oldTime}*\nNew date: *{newDate} at {newTime}*\n\n' +
-      'Reason: {reason}\n\nWe apologise for the inconvenience. The updated appointment PDF is attached.',
+      'Reason: {reason}\n\nWe apologise for the inconvenience. The updated appointment PDF is attached.{directions}',
     te:
       '⚠️ *అపాయింట్‌మెంట్ వాయిదా వేయబడింది*\n\n' +
       'కోడ్: *{code}*\nడాక్టర్: *{doctor}*\n\n' +
       'పాత తేదీ: *{oldDate} {oldTime}*\nకొత్త తేదీ: *{newDate} {newTime}*\n\n' +
-      'కారణం: {reason}\n\nఅసౌకర్యానికి క్షమించండి. నవీకరించబడిన అపాయింట్‌మెంట్ PDF జతచేయబడింది.',
+      'కారణం: {reason}\n\nఅసౌకర్యానికి క్షమించండి. నవీకరించబడిన అపాయింట్‌మెంట్ PDF జతచేయబడింది.{directions}',
   },
 
   arrival_confirmed_body: {

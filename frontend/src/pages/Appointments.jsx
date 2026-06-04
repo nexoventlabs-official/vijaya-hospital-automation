@@ -18,6 +18,8 @@ export default function Appointments() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
 
+  const [syncing, setSyncing] = useState(false);
+
   async function load() {
     setLoading(true);
     try {
@@ -40,8 +42,13 @@ export default function Appointments() {
   }, [items, q]);
 
   async function syncSheets() {
-    await api.post('/appointments/sync-sheets');
-    alert('Synced active appointments to Google Sheets.');
+    setSyncing(true);
+    try {
+      await api.post('/appointments/sync-sheets');
+      alert('Synced active appointments to Google Sheets.');
+    } finally {
+      setSyncing(false);
+    }
   }
 
   return (
@@ -51,8 +58,16 @@ export default function Appointments() {
           <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Appointments</h1>
           <p className="text-sm text-soft-stone mt-1">Manage and view real-time patient reservations.</p>
         </div>
-        <button onClick={syncSheets} className="btn-secondary py-2.5 px-4 text-xs font-semibold">
-          <RefreshCw size={14} /> Sync to Sheets
+        <button onClick={syncSheets} disabled={syncing} className="btn-secondary py-2.5 px-4 text-xs font-semibold">
+          {syncing ? (
+            <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+          ) : (
+            <RefreshCw size={14} />
+          )}
+          {syncing ? 'Syncing…' : 'Sync to Sheets'}
         </button>
       </div>
 
@@ -85,6 +100,40 @@ export default function Appointments() {
         </div>
       </div>
 
+      {loading ? (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-pale-amber/20 text-midnight-pine border-b border-arctic-mist font-grenette text-xs font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="text-left px-6 py-4">Code</th>
+                  <th className="text-left px-6 py-4">Date / Time</th>
+                  <th className="text-left px-6 py-4">Patient</th>
+                  <th className="text-left px-6 py-4">Doctor</th>
+                  <th className="text-left px-6 py-4">Fee</th>
+                  <th className="text-left px-6 py-4">Payment</th>
+                  <th className="text-left px-6 py-4">Status</th>
+                  <th className="text-right px-6 py-4"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-arctic-mist/70">
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-6 py-4"><div className="h-3 bg-arctic-mist/70 rounded w-24" /></td>
+                    <td className="px-6 py-4"><div className="h-3 bg-arctic-mist/70 rounded w-20 mb-1" /><div className="h-2.5 bg-arctic-mist/50 rounded w-14" /></td>
+                    <td className="px-6 py-4"><div className="h-3 bg-arctic-mist/70 rounded w-28 mb-1" /><div className="h-2.5 bg-arctic-mist/50 rounded w-20" /></td>
+                    <td className="px-6 py-4"><div className="h-3 bg-arctic-mist/70 rounded w-24 mb-1" /><div className="h-2.5 bg-arctic-mist/50 rounded w-16" /></td>
+                    <td className="px-6 py-4"><div className="h-3 bg-arctic-mist/70 rounded w-12" /></td>
+                    <td className="px-6 py-4"><div className="h-3 bg-arctic-mist/70 rounded w-16 mb-1" /><div className="h-2.5 bg-arctic-mist/50 rounded w-10" /></td>
+                    <td className="px-6 py-4"><div className="h-5 bg-arctic-mist/70 rounded-full w-16" /></td>
+                    <td className="px-6 py-4 text-right"><div className="h-6 bg-arctic-mist/50 rounded w-8 ml-auto" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -135,7 +184,7 @@ export default function Appointments() {
                   </td>
                 </tr>
               ))}
-              {!loading && !filtered.length && (
+              {!filtered.length && (
                 <tr>
                   <td colSpan="8" className="py-12 text-center text-soft-stone text-sm">
                     No appointments found.
@@ -146,6 +195,7 @@ export default function Appointments() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }

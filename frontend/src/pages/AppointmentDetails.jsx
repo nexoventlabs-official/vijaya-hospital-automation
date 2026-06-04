@@ -8,6 +8,7 @@ export default function AppointmentDetails() {
   const nav = useNavigate();
   const [a, setA] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
 
   async function load() {
@@ -30,6 +31,7 @@ export default function AppointmentDetails() {
   function print() {
     const token = localStorage.getItem('vh_token');
     const url = `${apiBase}/appointments/${id}/pdf`;
+    setPrinting(true);
     // Open PDF in a new window with auth header is not possible directly,
     // so we fetch as blob then open in a new tab where the browser triggers print.
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -42,7 +44,8 @@ export default function AppointmentDetails() {
             try { w.focus(); w.print(); } catch {}
           });
         }
-      });
+      })
+      .finally(() => setPrinting(false));
   }
 
   if (!a) return <div className="text-soft-stone py-12 text-center text-sm font-medium animate-pulse">Loading appointment details…</div>;
@@ -68,26 +71,66 @@ export default function AppointmentDetails() {
           <span className={`badge status-${a.status} mt-2`}>{a.status}</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={print} className="btn-secondary py-2 px-3 text-xs font-semibold">
-            <Printer size={14} /> Print PDF
+          <button onClick={print} disabled={printing} className="btn-secondary py-2 px-3 text-xs font-semibold">
+            {printing ? (
+              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            ) : (
+              <Printer size={14} />
+            )}
+            {printing ? 'Generating…' : 'Print PDF'}
           </button>
           {isActive && a.status === 'booked' && (
             <button disabled={busy} onClick={() => action('arrive')} className="btn-secondary py-2 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-50">
-              <Check size={14} /> Mark Arrived
+              {busy ? (
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+              ) : (
+                <Check size={14} />
+              )}
+              Mark Arrived
             </button>
           )}
           {isActive && (
             <>
               <button disabled={busy} onClick={() => action('complete', { paymentReceived: a.paymentMode === 'pay_at_hospital' })} className="btn-primary py-2 px-4 text-xs font-semibold">
-                <Check size={14} /> Complete Consultation
+                {busy ? (
+                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                ) : (
+                  <Check size={14} />
+                )}
+                {busy ? 'Updating…' : 'Complete Consultation'}
               </button>
               {a.paymentMode === 'pay_at_hospital' && a.paymentStatus !== 'paid' && (
                 <button disabled={busy} onClick={() => action('payment')} className="btn-secondary py-2 px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
-                  <IndianRupee size={14} /> Mark Paid
+                  {busy ? (
+                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  ) : (
+                    <IndianRupee size={14} />
+                  )}
+                  Mark Paid
                 </button>
               )}
               <button disabled={busy} onClick={() => action('cancel', { reason: prompt('Cancel reason?') || 'Cancelled by admin' })} className="btn-danger py-2 px-3 text-xs font-semibold">
-                <X size={14} /> Cancel
+                {busy ? (
+                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                ) : (
+                  <X size={14} />
+                )}
+                Cancel
               </button>
             </>
           )}

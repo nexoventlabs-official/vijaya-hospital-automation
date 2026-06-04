@@ -30,7 +30,7 @@ export default function Settings({ user }) {
       [
         'hospitalName', 'hospitalNameTe', 'contactPhone', 'contactPhoneAlt',
         'websiteUrl', 'addressLine', 'addressLineTe', 'locationLabel',
-        'googleMapsPlaceId', 'locationLat', 'locationLng',
+        'googleMapsPlaceId', 'googleMapsUrl',
       ].forEach((k) => {
         if (s[k] !== undefined) fd.append(k, s[k] ?? '');
       });
@@ -100,8 +100,19 @@ export default function Settings({ user }) {
         {f('addressLineTe', 'Address (Telugu)', { textarea: true, full: true })}
         {f('locationLabel', 'Location label (e.g. Main Branch)')}
         {f('googleMapsPlaceId', 'Google Maps Place ID (optional)')}
-        {f('locationLat', 'Location latitude', { type: 'number' })}
-        {f('locationLng', 'Location longitude', { type: 'number' })}
+        <div className="md:col-span-2">
+          <label className="label">Google Maps Link</label>
+          <p className="text-[11px] text-soft-stone mb-1.5">
+            Open Google Maps → search your hospital → tap <strong>Share</strong> → copy the link. Paste it here. This is used in WhatsApp appointment messages.
+          </p>
+          <input
+            type="url"
+            className="input"
+            placeholder="https://maps.app.goo.gl/..."
+            value={s.googleMapsUrl ?? ''}
+            onChange={(e) => setS({ ...s, googleMapsUrl: e.target.value })}
+          />
+        </div>
 
         <div className="md:col-span-2">
           <label className="label">Hospital Logo</label>

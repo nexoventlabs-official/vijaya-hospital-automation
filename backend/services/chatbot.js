@@ -162,7 +162,7 @@ async function sendPaymentSuccess(phone, appointment, lang) {
   await sendAppointmentPdf(phone, appointment, lang);
 }
 
-/** "Pay at Hospital" / online: PDF document + directions CTA button (two messages). */
+/** "Pay at Hospital" / online: PDF document with appointment details + directions link in caption. */
 async function sendAppointmentPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
 
@@ -171,9 +171,8 @@ async function sendAppointmentPdf(phone, appointment, lang) {
 
   // WhatsApp Cloud API does NOT support document.id (media ID) in cta_url
   // interactive headers — only document.link (public URL) is accepted there.
-  // So we send two messages:
-  //   1. The appointment PDF as a plain document message (uses media ID, fully supported).
-  //   2. The "Get Directions" CTA as a separate cta_url interactive message.
+  // Send the PDF as a plain document with the full confirmation text + directions
+  // link embedded directly in the caption.
   await meta.sendDocument(phone, {
     mediaId,
     filename,
@@ -184,15 +183,8 @@ async function sendAppointmentPdf(phone, appointment, lang) {
       time: appointment.timeLabel || appointment.time,
       fee: appointment.fee || 0,
       payMode: appointment.paymentMode === 'online' ? t('pay_mode_online', lang) : t('pay_mode_at_hospital', lang),
+      directions: `📍 ${lang === 'te' ? 'దారి' : 'Get Directions'}: ${directions}`,
     }),
-  });
-
-  await meta.sendCtaUrl(phone, {
-    headerText: settings?.hospitalName || 'Vijya Hospital',
-    bodyText: t('directions_body', lang),
-    footerText: settings?.hospitalName || 'Vijya Hospital',
-    ctaText: t('directions_cta', lang),
-    ctaUrl: directions,
   });
 }
 
@@ -201,8 +193,7 @@ async function sendRescheduledPdf(phone, appointment, lang) {
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Rescheduled');
   const directions = settingsSvc.directionsUrl(settings);
 
-  // cta_url interactive does not support document.id headers — send PDF first,
-  // then the directions CTA as a separate message.
+  // Send PDF with full details + directions link in caption — no separate message needed.
   await meta.sendDocument(phone, {
     mediaId,
     filename,
@@ -211,15 +202,8 @@ async function sendRescheduledPdf(phone, appointment, lang) {
       doctor: appointment.doctorName,
       date: appointment.date,
       time: appointment.timeLabel || appointment.time,
+      directions: `📍 ${lang === 'te' ? 'దారి' : 'Get Directions'}: ${directions}`,
     }),
-  });
-
-  await meta.sendCtaUrl(phone, {
-    headerText: settings?.hospitalName || 'Vijya Hospital',
-    bodyText: t('directions_body', lang),
-    footerText: settings?.hospitalName || 'Vijya Hospital',
-    ctaText: t('directions_cta', lang),
-    ctaUrl: directions,
   });
 }
 
@@ -242,31 +226,40 @@ async function sendCancelledPdf(phone, appointment, lang) {
 async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
   const settings = await settingsSvc.get();
   const { mediaId, filename } = await uploadAppointmentPdf(newAppt || oldAppt, settings, 'Appointment Postponed');
-  const caption = t('postpone_message_body', lang, {
-    code: (newAppt || oldAppt).code,
-    doctor: oldAppt.doctorName,
-    oldDate: oldAppt.date,
-    oldTime: oldAppt.timeLabel || oldAppt.time,
-    newDate: newAppt ? newAppt.date : '—',
-    newTime: newAppt ? newAppt.timeLabel || newAppt.time : '—',
-    reason: oldAppt.postponeReason || 'Doctor unavailable',
-  });
 
   if (newAppt) {
-    // cta_url interactive does not support document.id headers — send PDF first,
-    // then the directions CTA as a separate message.
+    // New slot assigned — include directions link in caption.
     const directions = settingsSvc.directionsUrl(settings);
-    await meta.sendDocument(phone, { mediaId, filename, caption });
-    await meta.sendCtaUrl(phone, {
-      headerText: settings?.hospitalName || 'Vijya Hospital',
-      bodyText: t('directions_body', lang),
-      footerText: settings?.hospitalName || 'Vijya Hospital',
-      ctaText: t('directions_cta', lang),
-      ctaUrl: directions,
+    await meta.sendDocument(phone, {
+      mediaId,
+      filename,
+      caption: t('postpone_message_body', lang, {
+        code: newAppt.code,
+        doctor: oldAppt.doctorName,
+        oldDate: oldAppt.date,
+        oldTime: oldAppt.timeLabel || oldAppt.time,
+        newDate: newAppt.date,
+        newTime: newAppt.timeLabel || newAppt.time,
+        reason: oldAppt.postponeReason || 'Doctor unavailable',
+        directions: `\n\n📍 ${lang === 'te' ? 'దారి' : 'Get Directions'}: ${directions}`,
+      }),
     });
   } else {
-    // No new slot — just the PDF with the postpone note.
-    await meta.sendDocument(phone, { mediaId, filename, caption });
+    // No new slot — just the PDF with the postpone note (no directions).
+    await meta.sendDocument(phone, {
+      mediaId,
+      filename,
+      caption: t('postpone_message_body', lang, {
+        code: oldAppt.code,
+        doctor: oldAppt.doctorName,
+        oldDate: oldAppt.date,
+        oldTime: oldAppt.timeLabel || oldAppt.time,
+        newDate: '—',
+        newTime: '—',
+        reason: oldAppt.postponeReason || 'Doctor unavailable',
+        directions: '',
+      }),
+    });
   }
 }
 
@@ -282,14 +275,38 @@ async function sendArrivedConfirmation(phone, appointment, lang) {
 }
 
 async function sendCompletedConfirmation(phone, appointment, lang) {
-  await meta.sendText(
-    phone,
-    t('consultation_done_body', lang, {
-      name: appointment.patientName.split(' ')[0],
-      code: appointment.code,
-      doctor: appointment.doctorName,
-    })
-  );
+  const settings = await settingsSvc.get();
+  const flowId = process.env.WHATSAPP_FLOW_ID;
+  const headerImageUrl = await flowImages.getUrl('chat_consultation_complete_header');
+  const mode = String(process.env.WHATSAPP_FLOW_STATUS || '').toUpperCase() === 'PUBLISHED' ? 'published' : 'draft';
+
+  if (flowId) {
+    // Rich message: image header + completion text + "Choose Service" flow CTA
+    await meta.sendFlowMessage(phone, {
+      flowId,
+      flowCta: t('choose_service_cta', lang),
+      headerImageUrl: headerImageUrl || undefined,
+      headerText: !headerImageUrl ? (settings?.hospitalName || 'Vijya Hospital') : undefined,
+      bodyText: t('consultation_done_body', lang, {
+        name: appointment.patientName.split(' ')[0],
+        code: appointment.code,
+        doctor: appointment.doctorName,
+      }),
+      footerText: settings?.hospitalName || 'Vijya Hospital',
+      flowToken: `vh_done_${phone}`,
+      mode,
+    });
+  } else {
+    // Fallback: plain text if flow not configured
+    await meta.sendText(
+      phone,
+      t('consultation_done_body', lang, {
+        name: appointment.patientName.split(' ')[0],
+        code: appointment.code,
+        doctor: appointment.doctorName,
+      })
+    );
+  }
 }
 
 async function sendWebsite(phone, lang) {

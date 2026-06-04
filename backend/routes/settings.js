@@ -34,11 +34,10 @@ router.put(
         'addressLineTe',
         'locationLabel',
         'googleMapsPlaceId',
+        'googleMapsUrl',
       ].forEach((k) => {
         if (body[k] !== undefined) patch[k] = body[k];
       });
-      if (body.locationLat !== undefined) patch.locationLat = parseFloat(body.locationLat) || 0;
-      if (body.locationLng !== undefined) patch.locationLng = parseFloat(body.locationLng) || 0;
 
       const files = req.files || {};
       const current = await Settings.findOne({ key: 'main' }).lean();

@@ -19,8 +19,7 @@ async function get(force = false) {
       contactPhone: process.env.HOSPITAL_PHONE || '',
       addressLine: process.env.HOSPITAL_ADDRESS || '',
       websiteUrl: process.env.HOSPITAL_WEBSITE || '',
-      locationLat: parseFloat(process.env.HOSPITAL_LOCATION_LAT || '0') || 0,
-      locationLng: parseFloat(process.env.HOSPITAL_LOCATION_LNG || '0') || 0,
+      googleMapsUrl: process.env.HOSPITAL_MAPS_URL || '',
     });
     doc = doc.toObject();
   }
@@ -41,14 +40,10 @@ async function update(patch) {
   return doc;
 }
 
-/** Build a Google Maps directions URL from the patient's current location. */
+/** Return the Google Maps directions URL set by the admin. Falls back to a generic maps search. */
 function directionsUrl(settings) {
-  const { locationLat, locationLng, googleMapsPlaceId, addressLine, hospitalName } = settings || {};
-  if (locationLat && locationLng) {
-    const dest = `${locationLat},${locationLng}`;
-    const q = googleMapsPlaceId ? `&destination_place_id=${encodeURIComponent(googleMapsPlaceId)}` : '';
-    return `https://www.google.com/maps/dir/?api=1&destination=${dest}${q}`;
-  }
+  const { googleMapsUrl, addressLine, hospitalName } = settings || {};
+  if (googleMapsUrl && googleMapsUrl.trim()) return googleMapsUrl.trim();
   if (addressLine) {
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${hospitalName || ''} ${addressLine}`.trim())}`;
   }

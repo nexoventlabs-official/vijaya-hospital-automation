@@ -19,6 +19,7 @@ const REQUIRED_KEYS = [
   { key: 'chat_website_header', label: 'Website CTA header' },
   { key: 'chat_contact_header', label: 'Contact CTA header' },
   { key: 'chat_appointment_pdf_header', label: 'Appointment PDF message header' },
+  { key: 'chat_consultation_complete_header', label: 'Consultation Completed message header' },
 
   // Flow-screen banners (rendered inside the WhatsApp Flow)
   { key: 'flow_welcome_banner', label: 'Service-select flow banner (1000×125)' },
