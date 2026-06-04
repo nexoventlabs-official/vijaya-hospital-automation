@@ -37,6 +37,9 @@ async function update(patch) {
   cache = doc;
   cacheAt = Date.now();
   await realtime.emit('settings', { kind: 'updated' });
+  // Re-prime the PDF image cache whenever logo/stamps change
+  const { primeImageCache } = require('./pdfGen');
+  primeImageCache(doc).catch(() => {});
   return doc;
 }
 

@@ -146,7 +146,12 @@ async function start() {
     const flowImages = require('./services/flowImages');
     const settingsSvc = require('./services/settings');
     await flowImages.ensureKeysExist();
-    await settingsSvc.get();
+    const settings = await settingsSvc.get();
+
+    // Prime the PDF image cache so the first admin print is instant
+    // (fetches logo + stamps from Cloudinary in the background).
+    const { primeImageCache } = require('./services/pdfGen');
+    primeImageCache(settings).catch(() => {});
   } catch (err) {
     console.warn('[Seed] flow image keys / settings skipped:', err.message);
   }

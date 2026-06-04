@@ -72,11 +72,12 @@ async function _moveToTerminalSheet(appt) {
   }
 }
 
-async function _invalidateCaches() {
+async function _invalidateCaches(apptId) {
   // Clear both the appointments list cache AND the dashboard stats cache so
   // realtime SSE reloads return fresh data immediately (no 15s staleness).
   await redis.delPattern('vh:cache:appointments:*');
   await redis.del('vh:cache:dashboard:stats');
+  if (apptId) await redis.del(`vh:cache:appt:${apptId}`);
 }
 
 /* ────────────────────────────── Booking ──────────────────────────────── */
@@ -150,7 +151,7 @@ async function bookAppointment({
   });
 
   await _syncSheetForActive(appt.toObject());
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'created', code: appt.code });
   return appt;
 }
@@ -208,7 +209,7 @@ async function rescheduleAppointment(apptId, { newDate, newTime, reason = '' } =
   await sheets.upsertRow(sheets.TAB_CANCELLED, old.toObject()).catch(() => {});
 
   await _syncSheetForActive(newAppt.toObject());
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'rescheduled', oldCode: old.code, newCode: newAppt.code });
   return { old, newAppt };
 }
@@ -228,7 +229,7 @@ async function cancelAppointment(apptId, { reason = '' } = {}) {
 
   await _moveToTerminalSheet(appt.toObject());
   await Appointment.deleteOne({ _id: appt._id }); // remove from Mongo per requirement
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'cancelled', code: appt.code });
   return appt;
 }
@@ -243,7 +244,7 @@ async function markArrived(apptId) {
   appt.arrivedAt = new Date();
   await appt.save();
   await _syncSheetForActive(appt.toObject());
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'arrived', code: appt.code });
   return appt;
 }
@@ -261,7 +262,7 @@ async function markCompleted(apptId, { paymentReceived = false, notes = '' } = {
 
   await _moveToTerminalSheet(appt.toObject());
   await Appointment.deleteOne({ _id: appt._id });
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'completed', code: appt.code });
   return appt;
 }
@@ -272,7 +273,7 @@ async function markPaymentReceived(apptId) {
   appt.paymentStatus = 'paid';
   await appt.save();
   await _syncSheetForActive(appt.toObject());
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'payment_updated', code: appt.code });
   return appt;
 }
@@ -378,7 +379,7 @@ async function postponeDoctorDay(doctorId, date, reason) {
     }
   }
 
-  await _invalidateCaches();
+  await _invalidateCaches(appt?._id || apptId);
   await realtime.emit('appointments', { kind: 'postponed', doctor: String(doctor._id), date, count: moved.length });
   await realtime.emit('doctors', { kind: 'absent', doctor: String(doctor._id), date });
   return moved;

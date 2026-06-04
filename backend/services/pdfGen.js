@@ -15,11 +15,28 @@
 const PDFDocument = require('pdfkit');
 const axios = require('axios');
 
+// In-process image cache — logo and stamps don't change often.
+// Keyed by URL, value = { buf: Buffer, fetchedAt: number }.
+const _imgCache = new Map();
+const IMG_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 async function fetchImage(url) {
   if (!url) return null;
+
+  const cached = _imgCache.get(url);
+  if (cached && Date.now() - cached.fetchedAt < IMG_CACHE_TTL) {
+    return cached.buf;
+  }
+
   try {
-    const r = await axios.get(url, { responseType: 'arraybuffer', timeout: 12000, maxContentLength: 4 * 1024 * 1024 });
-    return Buffer.from(r.data);
+    const r = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 8000,
+      maxContentLength: 4 * 1024 * 1024,
+    });
+    const buf = Buffer.from(r.data);
+    _imgCache.set(url, { buf, fetchedAt: Date.now() });
+    return buf;
   } catch (err) {
     console.warn('[pdfGen] fetchImage failed', url, err.message);
     return null;
@@ -61,13 +78,16 @@ function titleForStatus(status) {
  * @returns {Promise<Buffer>}
  */
 async function buildAppointmentPdf({ appointment, settings, title }) {
-  const logoBuf = settings?.logoUrl ? await fetchImage(settings.logoUrl) : null;
-
-  // Choose the stamp by status / payment.
+  // Choose stamp URL before fetching so we can parallelise logo + stamp fetch.
   let stampUrl = '';
   if (appointment.status === 'completed') stampUrl = settings?.stampCompletedUrl || '';
   else if (appointment.paymentStatus === 'paid') stampUrl = settings?.stampConfirmedUrl || '';
-  const stampBuf = stampUrl ? await fetchImage(stampUrl) : null;
+
+  // Fetch logo and stamp in parallel — both are cached after first hit.
+  const [logoBuf, stampBuf] = await Promise.all([
+    settings?.logoUrl ? fetchImage(settings.logoUrl) : Promise.resolve(null),
+    stampUrl ? fetchImage(stampUrl) : Promise.resolve(null),
+  ]);
 
   const heading = title || titleForStatus(appointment.status);
 
@@ -242,4 +262,19 @@ async function buildAppointmentPdf({ appointment, settings, title }) {
   });
 }
 
-module.exports = { buildAppointmentPdf };
+/**
+ * Prime the image cache at server startup so the first admin print is instant.
+ * Fetches logo + both stamps in parallel and warms the in-process cache.
+ */
+async function primeImageCache(settings) {
+  const urls = [
+    settings?.logoUrl,
+    settings?.stampConfirmedUrl,
+    settings?.stampCompletedUrl,
+  ].filter(Boolean);
+  if (!urls.length) return;
+  await Promise.all(urls.map((u) => fetchImage(u).catch(() => {})));
+  console.log(`[pdfGen] image cache primed (${urls.length} assets)`);
+}
+
+module.exports = { buildAppointmentPdf, primeImageCache };

@@ -40,9 +40,10 @@ export default function AppointmentDetails() {
         const objUrl = URL.createObjectURL(b);
         const w = window.open(objUrl);
         if (w) {
-          w.addEventListener('load', () => {
+          // setTimeout is more reliable than 'load' for blob PDF URLs across browsers
+          setTimeout(() => {
             try { w.focus(); w.print(); } catch {}
-          });
+          }, 800);
         }
       })
       .finally(() => setPrinting(false));
