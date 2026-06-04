@@ -12,6 +12,7 @@ const meta = require('./metaCloud');
 const flowImages = require('./flowImages');
 const settingsSvc = require('./settings');
 const pdfGen = require('./pdfGen');
+const cloudinary = require('./cloudinary');
 const subscriptionSvc = require('./subscription');
 const InboundMessage = require('../models/InboundMessage');
 const Patient = require('../models/Patient');
@@ -97,12 +98,31 @@ async function sendChooseService(phone, lang = 'en') {
   });
 }
 
-/** Helper: upload a generated PDF as WhatsApp media; returns the mediaId. */
-async function uploadAppointmentPdf(appointment, settings, title) {
-  const buffer = await pdfGen.buildAppointmentPdf({ appointment, settings, title });
-  const filename = `Appointment-${appointment.code}.pdf`;
-  const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
-  return { mediaId, filename };
+/**
+ * Upload PDF buffer to Cloudinary as a raw asset to get a public URL for use
+ * as a WhatsApp cta_url document header. Schedules deletion after a delay so
+ * Meta's servers have time to fetch the file before it's removed.
+ * Falls back gracefully if Cloudinary is not configured.
+ */
+async function uploadPdfForCtaUrl(buffer, code) {
+  const filename = `Appointment-${code}.pdf`;
+  try {
+    const { url, publicId } = await cloudinary.uploadBuffer(buffer, {
+      folder: 'appt_pdfs',
+      publicId: `appt_${code}_${Date.now()}`,
+      resourceType: 'raw',
+      overwrite: true,
+    });
+    // Delete after 60 s — enough time for Meta to fetch the file,
+    // but short enough that nothing lingers in Cloudinary storage.
+    setTimeout(() => {
+      cloudinary.destroy(publicId, { resourceType: 'raw' }).catch(() => {});
+    }, 60_000);
+    return { url, publicId, filename };
+  } catch (err) {
+    console.warn('[chatbot] Cloudinary PDF upload failed, falling back to mediaId:', err.message);
+    return null;
+  }
 }
 
 /**
@@ -162,65 +182,87 @@ async function sendPaymentSuccess(phone, appointment, lang) {
   await sendAppointmentPdf(phone, appointment, lang);
 }
 
-/** "Pay at Hospital" / online: PDF document with appointment details, followed by a Directions CTA button. */
+/** Single message: PDF as document header + appointment body + Get Directions CTA button. */
 async function sendAppointmentPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
-
-  const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Confirmation');
+  const buffer = await pdfGen.buildAppointmentPdf({ appointment, settings, title: 'Appointment Confirmation' });
+  const filename = `Appointment-${appointment.code}.pdf`;
   const directions = settingsSvc.directionsUrl(settings);
 
-  // 1️⃣ PDF with appointment details in caption (no raw URL)
-  await meta.sendDocument(phone, {
-    mediaId,
-    filename,
-    caption: t('appt_pdf_body', lang, {
-      code: appointment.code,
-      doctor: appointment.doctorName,
-      date: appointment.date,
-      time: appointment.timeLabel || appointment.time,
-      fee: appointment.fee || 0,
-      payMode: appointment.paymentMode === 'online' ? t('pay_mode_online', lang) : t('pay_mode_at_hospital', lang),
-    }),
+  const bodyText = t('appt_pdf_body', lang, {
+    code: appointment.code,
+    doctor: appointment.doctorName,
+    date: appointment.date,
+    time: appointment.timeLabel || appointment.time,
+    fee: appointment.fee || 0,
+    payMode: appointment.paymentMode === 'online' ? t('pay_mode_online', lang) : t('pay_mode_at_hospital', lang),
   });
 
-  // 2️⃣ Directions CTA — text header is fully supported (no document header needed here)
-  await meta.sendCtaUrl(phone, {
-    headerText: settings?.hospitalName || 'Vijya Hospital',
-    bodyText: t('directions_cta_body', lang),
-    footerText: settings?.hospitalName || 'Vijya Hospital',
-    ctaText: t('directions_cta', lang),
-    ctaUrl: directions,
-  });
+  const cloudResult = await uploadPdfForCtaUrl(buffer, appointment.code);
+  if (cloudResult) {
+    await meta.sendCtaUrl(phone, {
+      headerDocumentUrl: cloudResult.url,
+      headerDocumentFilename: filename,
+      bodyText,
+      footerText: settings?.hospitalName || 'Vijya Hospital',
+      ctaText: t('directions_cta', lang),
+      ctaUrl: directions,
+    });
+  } else {
+    // Fallback: upload as WhatsApp media ID + separate CTA message
+    const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
+    await meta.sendDocument(phone, { mediaId, filename, caption: bodyText });
+    await meta.sendCtaUrl(phone, {
+      headerText: settings?.hospitalName || 'Vijya Hospital',
+      bodyText: t('directions_cta_body', lang),
+      footerText: settings?.hospitalName || 'Vijya Hospital',
+      ctaText: t('directions_cta', lang),
+      ctaUrl: directions,
+    });
+  }
 }
 
 async function sendRescheduledPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
-  const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Rescheduled');
+  const buffer = await pdfGen.buildAppointmentPdf({ appointment, settings, title: 'Appointment Rescheduled' });
+  const filename = `Appointment-${appointment.code}.pdf`;
   const directions = settingsSvc.directionsUrl(settings);
 
-  await meta.sendDocument(phone, {
-    mediaId,
-    filename,
-    caption: t('reschedule_pdf_body', lang, {
-      code: appointment.code,
-      doctor: appointment.doctorName,
-      date: appointment.date,
-      time: appointment.timeLabel || appointment.time,
-    }),
+  const bodyText = t('reschedule_pdf_body', lang, {
+    code: appointment.code,
+    doctor: appointment.doctorName,
+    date: appointment.date,
+    time: appointment.timeLabel || appointment.time,
   });
 
-  await meta.sendCtaUrl(phone, {
-    headerText: settings?.hospitalName || 'Vijya Hospital',
-    bodyText: t('directions_cta_body', lang),
-    footerText: settings?.hospitalName || 'Vijya Hospital',
-    ctaText: t('directions_cta', lang),
-    ctaUrl: directions,
-  });
+  const cloudResult = await uploadPdfForCtaUrl(buffer, appointment.code);
+  if (cloudResult) {
+    await meta.sendCtaUrl(phone, {
+      headerDocumentUrl: cloudResult.url,
+      headerDocumentFilename: filename,
+      bodyText,
+      footerText: settings?.hospitalName || 'Vijya Hospital',
+      ctaText: t('directions_cta', lang),
+      ctaUrl: directions,
+    });
+  } else {
+    const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
+    await meta.sendDocument(phone, { mediaId, filename, caption: bodyText });
+    await meta.sendCtaUrl(phone, {
+      headerText: settings?.hospitalName || 'Vijya Hospital',
+      bodyText: t('directions_cta_body', lang),
+      footerText: settings?.hospitalName || 'Vijya Hospital',
+      ctaText: t('directions_cta', lang),
+      ctaUrl: directions,
+    });
+  }
 }
 
 async function sendCancelledPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
-  const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Cancelled');
+  const buffer = await pdfGen.buildAppointmentPdf({ appointment, settings, title: 'Appointment Cancelled' });
+  const filename = `Appointment-${appointment.code}.pdf`;
+  const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
   await meta.sendDocument(phone, {
     mediaId,
     filename,
@@ -236,46 +278,48 @@ async function sendCancelledPdf(phone, appointment, lang) {
 
 async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
   const settings = await settingsSvc.get();
-  const { mediaId, filename } = await uploadAppointmentPdf(newAppt || oldAppt, settings, 'Appointment Postponed');
+  const apptToUse = newAppt || oldAppt;
+  const buffer = await pdfGen.buildAppointmentPdf({ appointment: apptToUse, settings, title: 'Appointment Postponed' });
+  const filename = `Appointment-${apptToUse.code}.pdf`;
+
+  const caption = t('postpone_message_body', lang, {
+    code: apptToUse.code,
+    doctor: oldAppt.doctorName,
+    oldDate: oldAppt.date,
+    oldTime: oldAppt.timeLabel || oldAppt.time,
+    newDate: newAppt ? newAppt.date : '—',
+    newTime: newAppt ? (newAppt.timeLabel || newAppt.time) : '—',
+    reason: oldAppt.postponeReason || 'Doctor unavailable',
+  });
 
   if (newAppt) {
-    // New slot assigned — send PDF then a Directions CTA button.
+    // New slot assigned — single message: PDF + body + Directions CTA
     const directions = settingsSvc.directionsUrl(settings);
-    await meta.sendDocument(phone, {
-      mediaId,
-      filename,
-      caption: t('postpone_message_body', lang, {
-        code: newAppt.code,
-        doctor: oldAppt.doctorName,
-        oldDate: oldAppt.date,
-        oldTime: oldAppt.timeLabel || oldAppt.time,
-        newDate: newAppt.date,
-        newTime: newAppt.timeLabel || newAppt.time,
-        reason: oldAppt.postponeReason || 'Doctor unavailable',
-      }),
-    });
-    await meta.sendCtaUrl(phone, {
-      headerText: settings?.hospitalName || 'Vijya Hospital',
-      bodyText: t('directions_cta_body', lang),
-      footerText: settings?.hospitalName || 'Vijya Hospital',
-      ctaText: t('directions_cta', lang),
-      ctaUrl: directions,
-    });
+    const cloudResult = await uploadPdfForCtaUrl(buffer, apptToUse.code);
+    if (cloudResult) {
+      await meta.sendCtaUrl(phone, {
+        headerDocumentUrl: cloudResult.url,
+        headerDocumentFilename: filename,
+        bodyText: caption,
+        footerText: settings?.hospitalName || 'Vijya Hospital',
+        ctaText: t('directions_cta', lang),
+        ctaUrl: directions,
+      });
+    } else {
+      const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
+      await meta.sendDocument(phone, { mediaId, filename, caption });
+      await meta.sendCtaUrl(phone, {
+        headerText: settings?.hospitalName || 'Vijya Hospital',
+        bodyText: t('directions_cta_body', lang),
+        footerText: settings?.hospitalName || 'Vijya Hospital',
+        ctaText: t('directions_cta', lang),
+        ctaUrl: directions,
+      });
+    }
   } else {
-    // No new slot — just the PDF with the postpone note (no directions button).
-    await meta.sendDocument(phone, {
-      mediaId,
-      filename,
-      caption: t('postpone_message_body', lang, {
-        code: oldAppt.code,
-        doctor: oldAppt.doctorName,
-        oldDate: oldAppt.date,
-        oldTime: oldAppt.timeLabel || oldAppt.time,
-        newDate: '—',
-        newTime: '—',
-        reason: oldAppt.postponeReason || 'Doctor unavailable',
-      }),
-    });
+    // No new slot — just the PDF with the postpone note (no directions button)
+    const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
+    await meta.sendDocument(phone, { mediaId, filename, caption });
   }
 }
 
