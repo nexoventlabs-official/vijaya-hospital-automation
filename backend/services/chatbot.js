@@ -162,17 +162,14 @@ async function sendPaymentSuccess(phone, appointment, lang) {
   await sendAppointmentPdf(phone, appointment, lang);
 }
 
-/** "Pay at Hospital" / online: PDF document with appointment details + directions link in caption. */
+/** "Pay at Hospital" / online: PDF document with appointment details, followed by a Directions CTA button. */
 async function sendAppointmentPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
 
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Confirmation');
   const directions = settingsSvc.directionsUrl(settings);
 
-  // WhatsApp Cloud API does NOT support document.id (media ID) in cta_url
-  // interactive headers — only document.link (public URL) is accepted there.
-  // Send the PDF as a plain document with the full confirmation text + directions
-  // link embedded directly in the caption.
+  // 1️⃣ PDF with appointment details in caption (no raw URL)
   await meta.sendDocument(phone, {
     mediaId,
     filename,
@@ -183,8 +180,16 @@ async function sendAppointmentPdf(phone, appointment, lang) {
       time: appointment.timeLabel || appointment.time,
       fee: appointment.fee || 0,
       payMode: appointment.paymentMode === 'online' ? t('pay_mode_online', lang) : t('pay_mode_at_hospital', lang),
-      directions: `📍 ${lang === 'te' ? 'దారి' : 'Get Directions'}: ${directions}`,
     }),
+  });
+
+  // 2️⃣ Directions CTA — text header is fully supported (no document header needed here)
+  await meta.sendCtaUrl(phone, {
+    headerText: settings?.hospitalName || 'Vijya Hospital',
+    bodyText: t('directions_cta_body', lang),
+    footerText: settings?.hospitalName || 'Vijya Hospital',
+    ctaText: t('directions_cta', lang),
+    ctaUrl: directions,
   });
 }
 
@@ -193,7 +198,6 @@ async function sendRescheduledPdf(phone, appointment, lang) {
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Rescheduled');
   const directions = settingsSvc.directionsUrl(settings);
 
-  // Send PDF with full details + directions link in caption — no separate message needed.
   await meta.sendDocument(phone, {
     mediaId,
     filename,
@@ -202,8 +206,15 @@ async function sendRescheduledPdf(phone, appointment, lang) {
       doctor: appointment.doctorName,
       date: appointment.date,
       time: appointment.timeLabel || appointment.time,
-      directions: `📍 ${lang === 'te' ? 'దారి' : 'Get Directions'}: ${directions}`,
     }),
+  });
+
+  await meta.sendCtaUrl(phone, {
+    headerText: settings?.hospitalName || 'Vijya Hospital',
+    bodyText: t('directions_cta_body', lang),
+    footerText: settings?.hospitalName || 'Vijya Hospital',
+    ctaText: t('directions_cta', lang),
+    ctaUrl: directions,
   });
 }
 
@@ -228,7 +239,7 @@ async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
   const { mediaId, filename } = await uploadAppointmentPdf(newAppt || oldAppt, settings, 'Appointment Postponed');
 
   if (newAppt) {
-    // New slot assigned — include directions link in caption.
+    // New slot assigned — send PDF then a Directions CTA button.
     const directions = settingsSvc.directionsUrl(settings);
     await meta.sendDocument(phone, {
       mediaId,
@@ -241,11 +252,17 @@ async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
         newDate: newAppt.date,
         newTime: newAppt.timeLabel || newAppt.time,
         reason: oldAppt.postponeReason || 'Doctor unavailable',
-        directions: `\n\n📍 ${lang === 'te' ? 'దారి' : 'Get Directions'}: ${directions}`,
       }),
     });
+    await meta.sendCtaUrl(phone, {
+      headerText: settings?.hospitalName || 'Vijya Hospital',
+      bodyText: t('directions_cta_body', lang),
+      footerText: settings?.hospitalName || 'Vijya Hospital',
+      ctaText: t('directions_cta', lang),
+      ctaUrl: directions,
+    });
   } else {
-    // No new slot — just the PDF with the postpone note (no directions).
+    // No new slot — just the PDF with the postpone note (no directions button).
     await meta.sendDocument(phone, {
       mediaId,
       filename,
@@ -257,7 +274,6 @@ async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
         newDate: '—',
         newTime: '—',
         reason: oldAppt.postponeReason || 'Doctor unavailable',
-        directions: '',
       }),
     });
   }

@@ -164,6 +164,10 @@ async function handleFlowCompletion(msg) {
         });
         await flowEndpoint.dropBookingToken(payload.booking_token);
 
+        // Acknowledge immediately so the patient knows something is happening
+        // while the PDF is being generated in the background.
+        await meta.sendText(phone, t('appt_generating', lang));
+
         // Online + native pay configured + fee > 0 → request payment inside
         // WhatsApp. The confirmation PDF is sent only after payment succeeds.
         const wantsOnline = payload.payment_mode === 'online';
