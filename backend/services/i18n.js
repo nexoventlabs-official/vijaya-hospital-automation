@@ -132,6 +132,10 @@ const STRINGS = {
   pay_mode_at_hospital: { en: 'Pay at Hospital', te: 'హాస్పిటల్‌లో చెల్లించండి' },
   pay_mode_online: { en: 'Online (Paid)', te: 'ఆన్‌లైన్ (చెల్లించబడింది)' },
   directions_cta: { en: 'Get Directions', te: 'దారి చూపండి' },
+  directions_body: {
+    en: '📍 Tap *Get Directions* below to navigate to the hospital.',
+    te: '📍 హాస్పిటల్‌కు దారి కోసం కింద *Get Directions* నొక్కండి.',
+  },
 
   // ─── Online payment (Meta Native WhatsApp Pay) ─────────────────────────
   pay_request_body: {

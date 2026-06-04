@@ -162,19 +162,22 @@ async function sendPaymentSuccess(phone, appointment, lang) {
   await sendAppointmentPdf(phone, appointment, lang);
 }
 
-/** "Pay at Hospital" / online: single message — PDF (as header) + directions CTA. */
+/** "Pay at Hospital" / online: PDF document + directions CTA button (two messages). */
 async function sendAppointmentPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
 
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Confirmation');
   const directions = settingsSvc.directionsUrl(settings);
 
-  // Single cta_url message: the appointment PDF is the document header, the
-  // confirmation text is the body, and "Get Directions" is the CTA button.
-  await meta.sendCtaUrl(phone, {
-    headerDocumentMediaId: mediaId,
-    headerDocumentFilename: filename,
-    bodyText: t('appt_pdf_body', lang, {
+  // WhatsApp Cloud API does NOT support document.id (media ID) in cta_url
+  // interactive headers — only document.link (public URL) is accepted there.
+  // So we send two messages:
+  //   1. The appointment PDF as a plain document message (uses media ID, fully supported).
+  //   2. The "Get Directions" CTA as a separate cta_url interactive message.
+  await meta.sendDocument(phone, {
+    mediaId,
+    filename,
+    caption: t('appt_pdf_body', lang, {
       code: appointment.code,
       doctor: appointment.doctorName,
       date: appointment.date,
@@ -182,6 +185,11 @@ async function sendAppointmentPdf(phone, appointment, lang) {
       fee: appointment.fee || 0,
       payMode: appointment.paymentMode === 'online' ? t('pay_mode_online', lang) : t('pay_mode_at_hospital', lang),
     }),
+  });
+
+  await meta.sendCtaUrl(phone, {
+    headerText: settings?.hospitalName || 'Vijya Hospital',
+    bodyText: t('directions_body', lang),
     footerText: settings?.hospitalName || 'Vijya Hospital',
     ctaText: t('directions_cta', lang),
     ctaUrl: directions,
@@ -192,15 +200,23 @@ async function sendRescheduledPdf(phone, appointment, lang) {
   const settings = await settingsSvc.get();
   const { mediaId, filename } = await uploadAppointmentPdf(appointment, settings, 'Appointment Rescheduled');
   const directions = settingsSvc.directionsUrl(settings);
-  await meta.sendCtaUrl(phone, {
-    headerDocumentMediaId: mediaId,
-    headerDocumentFilename: filename,
-    bodyText: t('reschedule_pdf_body', lang, {
+
+  // cta_url interactive does not support document.id headers — send PDF first,
+  // then the directions CTA as a separate message.
+  await meta.sendDocument(phone, {
+    mediaId,
+    filename,
+    caption: t('reschedule_pdf_body', lang, {
       code: appointment.code,
       doctor: appointment.doctorName,
       date: appointment.date,
       time: appointment.timeLabel || appointment.time,
     }),
+  });
+
+  await meta.sendCtaUrl(phone, {
+    headerText: settings?.hospitalName || 'Vijya Hospital',
+    bodyText: t('directions_body', lang),
     footerText: settings?.hospitalName || 'Vijya Hospital',
     ctaText: t('directions_cta', lang),
     ctaUrl: directions,
@@ -237,12 +253,13 @@ async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
   });
 
   if (newAppt) {
-    // Single message — PDF header + postpone details + directions CTA.
+    // cta_url interactive does not support document.id headers — send PDF first,
+    // then the directions CTA as a separate message.
     const directions = settingsSvc.directionsUrl(settings);
+    await meta.sendDocument(phone, { mediaId, filename, caption });
     await meta.sendCtaUrl(phone, {
-      headerDocumentMediaId: mediaId,
-      headerDocumentFilename: filename,
-      bodyText: caption,
+      headerText: settings?.hospitalName || 'Vijya Hospital',
+      bodyText: t('directions_body', lang),
       footerText: settings?.hospitalName || 'Vijya Hospital',
       ctaText: t('directions_cta', lang),
       ctaUrl: directions,
