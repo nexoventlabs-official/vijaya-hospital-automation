@@ -23,6 +23,9 @@ const subscriptionSvc = require('../services/subscription');
 const { markApptPaid, findApptByReference } = require('../services/apptPayments');
 const Appointment = require('../models/Appointment');
 const { t } = require('../services/i18n');
+const ownerNotify = require('../services/ownerNotify');
+const hospitalConfig = require('../config/hospital.config');
+const crmBridge = require('../services/crmBridge');
 
 const router = express.Router();
 
@@ -163,6 +166,11 @@ async function handleFlowCompletion(msg) {
           paymentMode: payload.payment_mode === 'online' ? 'online' : 'pay_at_hospital',
         });
         await flowEndpoint.dropBookingToken(payload.booking_token);
+
+        // Notify the business owner on WhatsApp (Loop 4 — non-blocking, config-driven)
+        ownerNotify.notifyOwner(appt, hospitalConfig);
+        // Push completed outcome to CRM (Loop 5 — non-blocking, config-driven)
+        crmBridge.pushToCRM(crmBridge.fromAppointment(appt), hospitalConfig);
 
         // Acknowledge immediately so the patient knows something is happening
         // while the PDF is being generated in the background.

@@ -17,6 +17,7 @@ const subscriptionSvc = require('./subscription');
 const InboundMessage = require('../models/InboundMessage');
 const Patient = require('../models/Patient');
 const { t } = require('./i18n');
+const hospitalConfig = require('../config/hospital.config');
 
 const GREETING_RE = /^(hi+|h?ello+|hey+|menu|services|help|start|namaste|namaskaram)\b/i;
 
@@ -67,7 +68,7 @@ async function sendLanguageChoice(phone, lang = 'en') {
   const headerImageUrl = await flowImages.getUrl('chat_welcome_header');
   await meta.sendButtons(phone, {
     headerImageUrl: headerImageUrl || undefined,
-    headerText: !headerImageUrl ? 'Vijya Hospital' : undefined,
+    headerText: !headerImageUrl ? hospitalConfig.businessName : undefined,
     bodyText: t('welcome_body', lang),
     footerText: t('welcome_footer', lang),
     buttons: [
@@ -90,7 +91,7 @@ async function sendChooseService(phone, lang = 'en') {
     flowId,
     flowCta: t('choose_service_cta', lang),
     headerImageUrl: headerImageUrl || undefined,
-    headerText: !headerImageUrl ? 'Vijya Hospital' : undefined,
+    headerText: !headerImageUrl ? hospitalConfig.businessName : undefined,
     bodyText: t('choose_service_body', lang),
     footerText: t('choose_service_footer', lang),
     flowToken: `vh_${phone}_${lang}`,
@@ -147,7 +148,7 @@ async function sendPaymentRequest(phone, appointment, lang) {
     referenceId: `APPT-${appointment._id}`,
     configurationName: process.env.META_PAYMENT_CONFIGURATION_NAME,
     headerImageUrl: headerImageUrl || undefined,
-    headerText: !headerImageUrl ? (settings?.hospitalName || 'Vijya Hospital') : undefined,
+    headerText: !headerImageUrl ? (settings?.hospitalName || hospitalConfig.businessName) : undefined,
     bodyText: t('pay_request_body', lang, {
       doctor: appointment.doctorName,
       date: appointment.date,
@@ -204,7 +205,7 @@ async function sendAppointmentPdf(phone, appointment, lang) {
       headerDocumentUrl: cloudResult.url,
       headerDocumentFilename: filename,
       bodyText,
-      footerText: settings?.hospitalName || 'Vijya Hospital',
+      footerText: settings?.hospitalName || hospitalConfig.businessName,
       ctaText: t('directions_cta', lang),
       ctaUrl: directions,
     });
@@ -213,9 +214,9 @@ async function sendAppointmentPdf(phone, appointment, lang) {
     const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
     await meta.sendDocument(phone, { mediaId, filename, caption: bodyText });
     await meta.sendCtaUrl(phone, {
-      headerText: settings?.hospitalName || 'Vijya Hospital',
+      headerText: settings?.hospitalName || hospitalConfig.businessName,
       bodyText: t('directions_cta_body', lang),
-      footerText: settings?.hospitalName || 'Vijya Hospital',
+      footerText: settings?.hospitalName || hospitalConfig.businessName,
       ctaText: t('directions_cta', lang),
       ctaUrl: directions,
     });
@@ -241,7 +242,7 @@ async function sendRescheduledPdf(phone, appointment, lang) {
       headerDocumentUrl: cloudResult.url,
       headerDocumentFilename: filename,
       bodyText,
-      footerText: settings?.hospitalName || 'Vijya Hospital',
+      footerText: settings?.hospitalName || hospitalConfig.businessName,
       ctaText: t('directions_cta', lang),
       ctaUrl: directions,
     });
@@ -249,9 +250,9 @@ async function sendRescheduledPdf(phone, appointment, lang) {
     const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
     await meta.sendDocument(phone, { mediaId, filename, caption: bodyText });
     await meta.sendCtaUrl(phone, {
-      headerText: settings?.hospitalName || 'Vijya Hospital',
+      headerText: settings?.hospitalName || hospitalConfig.businessName,
       bodyText: t('directions_cta_body', lang),
-      footerText: settings?.hospitalName || 'Vijya Hospital',
+      footerText: settings?.hospitalName || hospitalConfig.businessName,
       ctaText: t('directions_cta', lang),
       ctaUrl: directions,
     });
@@ -301,7 +302,7 @@ async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
         headerDocumentUrl: cloudResult.url,
         headerDocumentFilename: filename,
         bodyText: caption,
-        footerText: settings?.hospitalName || 'Vijya Hospital',
+        footerText: settings?.hospitalName || hospitalConfig.businessName,
         ctaText: t('directions_cta', lang),
         ctaUrl: directions,
       });
@@ -309,9 +310,9 @@ async function sendPostponePdf(phone, oldAppt, newAppt, lang) {
       const mediaId = await meta.uploadMedia(buffer, { mimeType: 'application/pdf', filename });
       await meta.sendDocument(phone, { mediaId, filename, caption });
       await meta.sendCtaUrl(phone, {
-        headerText: settings?.hospitalName || 'Vijya Hospital',
+        headerText: settings?.hospitalName || hospitalConfig.businessName,
         bodyText: t('directions_cta_body', lang),
-        footerText: settings?.hospitalName || 'Vijya Hospital',
+        footerText: settings?.hospitalName || hospitalConfig.businessName,
         ctaText: t('directions_cta', lang),
         ctaUrl: directions,
       });
@@ -346,13 +347,13 @@ async function sendCompletedConfirmation(phone, appointment, lang) {
       flowId,
       flowCta: t('choose_service_cta', lang),
       headerImageUrl: headerImageUrl || undefined,
-      headerText: !headerImageUrl ? (settings?.hospitalName || 'Vijya Hospital') : undefined,
+      headerText: !headerImageUrl ? (settings?.hospitalName || hospitalConfig.businessName) : undefined,
       bodyText: t('consultation_done_body', lang, {
         name: appointment.patientName.split(' ')[0],
         code: appointment.code,
         doctor: appointment.doctorName,
       }),
-      footerText: settings?.hospitalName || 'Vijya Hospital',
+      footerText: settings?.hospitalName || hospitalConfig.businessName,
       flowToken: `vh_done_${phone}`,
       mode,
     });
@@ -377,7 +378,7 @@ async function sendWebsite(phone, lang) {
     headerImageUrl: headerImageUrl || undefined,
     headerText: !headerImageUrl ? 'Our Website' : undefined,
     bodyText: t('website_body', lang),
-    footerText: settings?.hospitalName || 'Vijya Hospital',
+    footerText: settings?.hospitalName || hospitalConfig.businessName,
     ctaText: t('website_cta', lang),
     ctaUrl: url,
   });
@@ -395,7 +396,7 @@ async function sendContact(phone, lang) {
     headerImageUrl: headerImageUrl || undefined,
     headerText: !headerImageUrl ? 'Contact Us' : undefined,
     bodyText: t('contact_body', lang, { phone: phoneNum, address }),
-    footerText: settings?.hospitalName || 'Vijya Hospital',
+    footerText: settings?.hospitalName || hospitalConfig.businessName,
     ctaText: t('contact_cta', lang),
     ctaUrl: telUrl,
   });

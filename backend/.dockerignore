@@ -1,0 +1,38 @@
+node_modules
+npm-debug.log
+
+# Environment files (provided at runtime via env_file / -e)
+.env
+.env.local
+.env.*.local
+.env.example
+
+# Secrets — flow private keys are injected via FLOW_PRIVATE_KEY env at runtime
+flow_keys
+
+# Logs
+logs
+*.log
+
+# Tests
+__tests__
+*.test.js
+*.spec.js
+jest.config.js
+
+# Docs
+*.md
+docs/
+
+# Git / CI
+.git
+.gitignore
+.github
+
+# IDE / OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -20,6 +20,7 @@ const adminsRoutes = require('./routes/admins');
 const plansRoutes = require('./routes/plans');
 const billingRoutes = require('./routes/billing');
 const paymentRoutes = require('./routes/payment');
+const hospitalConfig = require('./config/hospital.config');
 
 const app = express();
 
@@ -65,7 +66,7 @@ app.use(
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Health
-app.get('/', (_req, res) => res.json({ name: 'Vijya Hospital API', status: 'ok', time: new Date().toISOString() }));
+app.get('/', (_req, res) => res.json({ name: `${hospitalConfig.businessName} API`, status: 'ok', time: new Date().toISOString() }));
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
 // API routes

@@ -22,9 +22,10 @@ const realtime = require('./realtime');
 const sheets = require('./googleSheets');
 const slotsSvc = require('./slots');
 const redis = require('./redis');
+const hospitalConfig = require('../config/hospital.config');
 
 function genCode() {
-  return 'VH-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+  return hospitalConfig.appointmentPrefix + crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
 function fmt12(time) {

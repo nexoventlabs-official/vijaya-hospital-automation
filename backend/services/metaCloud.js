@@ -183,7 +183,7 @@ async function sendFlowMessage(to, options) {
   if (headerDocumentMediaId) header = { type: 'document', document: { id: headerDocumentMediaId, filename: headerDocumentFilename || 'document.pdf' } };
   else if (headerDocumentUrl) header = { type: 'document', document: { link: headerDocumentUrl, filename: headerDocumentFilename || 'document.pdf' } };
   else if (headerImageUrl) header = { type: 'image', image: { link: headerImageUrl } };
-  else header = { type: 'text', text: headerText || 'Vijya Hospital' };
+  else header = { type: 'text', text: headerText || process.env.HOSPITAL_NAME || 'Clinic' };
 
   const interactive = {
     type: 'flow',

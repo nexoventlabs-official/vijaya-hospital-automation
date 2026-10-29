@@ -18,6 +18,7 @@ const Plan = require('../models/Plan');
 const PaymentLink = require('../models/PaymentLink');
 const razorpay = require('../services/razorpay');
 const subscriptionSvc = require('../services/subscription');
+const hospitalConfig = require('../config/hospital.config');
 const emailSvc = require('../services/email');
 const invoicePdf = require('../services/invoicePdf');
 const settingsSvc = require('../services/settings');
@@ -178,7 +179,7 @@ router.get('/callback', async (req, res) => {
         await emailSvc.send({
           to: admin.email,
           subject: `Your ${plan.name} subscription invoice — ${sub.invoiceNumber}`,
-          text: `Hello ${admin.name || ''},\n\nThank you for your purchase of the "${plan.name}" plan.\n\nInvoice: ${sub.invoiceNumber}\nAmount: INR ${sub.amount}\nValid: ${new Date(sub.startsAt).toDateString()} to ${new Date(sub.endsAt).toDateString()}\n\nYour invoice is attached.\n\n— ${settings?.hospitalName || 'Vijya Hospital'}`,
+          text: `Hello ${admin.name || ''},\n\nThank you for your purchase of the "${plan.name}" plan.\n\nInvoice: ${sub.invoiceNumber}\nAmount: INR ${sub.amount}\nValid: ${new Date(sub.startsAt).toDateString()} to ${new Date(sub.endsAt).toDateString()}\n\nYour invoice is attached.\n\n— ${settings?.hospitalName || hospitalConfig.businessName}`,
           attachments: [{ filename: `Invoice-${sub.invoiceNumber}.pdf`, content: pdfBuffer }],
         });
         sub.invoiceSentTo = admin.email;

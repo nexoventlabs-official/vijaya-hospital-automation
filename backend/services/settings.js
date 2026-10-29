@@ -4,6 +4,7 @@
  */
 const Settings = require('../models/Settings');
 const realtime = require('./realtime');
+const hospitalConfig = require('../config/hospital.config');
 
 let cache = null;
 let cacheAt = 0;
@@ -15,7 +16,7 @@ async function get(force = false) {
   if (!doc) {
     doc = await Settings.create({
       key: 'main',
-      hospitalName: process.env.HOSPITAL_NAME || 'Vijya Hospital',
+      hospitalName: hospitalConfig.businessName,
       contactPhone: process.env.HOSPITAL_PHONE || '',
       addressLine: process.env.HOSPITAL_ADDRESS || '',
       websiteUrl: process.env.HOSPITAL_WEBSITE || '',

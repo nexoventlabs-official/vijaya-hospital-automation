@@ -5,6 +5,7 @@
  */
 const PDFDocument = require('pdfkit');
 const axios = require('axios');
+const hospitalConfig = require('../config/hospital.config');
 
 async function fetchImage(url) {
   if (!url) return null;
@@ -45,7 +46,7 @@ function money(n) {
  */
 async function buildInvoicePdf({ subscription, plan, admin, settings }) {
   const logoBuf = settings?.logoUrl ? await fetchImage(settings.logoUrl) : null;
-  const companyName = settings?.hospitalName || 'Vijya Hospital';
+  const companyName = settings?.hospitalName || hospitalConfig.businessName;
 
   return new Promise((resolve, reject) => {
     try {

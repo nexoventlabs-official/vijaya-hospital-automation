@@ -3,6 +3,8 @@
  * Use {placeholder} tokens for runtime substitution via the small `t()` helper.
  */
 
+const hospitalConfig = require('../config/hospital.config');
+
 const STRINGS = {
   // ─── Welcome / language ─────────────────────────────────────────────────
   welcome_body: {
@@ -247,6 +249,19 @@ const STRINGS = {
     te: 'రాబోయే 14 రోజుల్లో ఈ డాక్టర్‌కు అపాయింట్‌మెంట్ స్లాట్లు అందుబాటులో లేవు.',
   },
 };
+
+// SYNHA Loop 4 — make brand identity config-driven without disturbing the
+// translations: swap the hardcoded hospital-name tokens for config values.
+(function applyBrand() {
+  const en = hospitalConfig.businessName;
+  const te = hospitalConfig.businessNameLocal;
+  for (const key of Object.keys(STRINGS)) {
+    const entry = STRINGS[key];
+    if (!entry || typeof entry !== 'object') continue;
+    if (typeof entry.en === 'string' && en) entry.en = entry.en.split('Vijya Hospital').join(en);
+    if (typeof entry.te === 'string' && te) entry.te = entry.te.split('విజయ హాస్పిటల్').join(te);
+  }
+})();
 
 function t(key, lang = 'en', vars = {}) {
   const entry = STRINGS[key];

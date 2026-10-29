@@ -14,6 +14,7 @@
  */
 const PDFDocument = require('pdfkit');
 const axios = require('axios');
+const hospitalConfig = require('../config/hospital.config');
 
 // In-process image cache — logo and stamps don't change often.
 // Keyed by URL, value = { buf: Buffer, fetchedAt: number }.
@@ -102,7 +103,7 @@ async function buildAppointmentPdf({ appointment, settings, title }) {
       const pageWidth = doc.page.width;
       const margin = doc.page.margins.left;
       const contentWidth = pageWidth - margin * 2;
-      const hospitalName = settings?.hospitalName || 'Vijya Hospital';
+      const hospitalName = settings?.hospitalName || hospitalConfig.businessName;
 
       // ── Header: hospital name (left) + logo (right) ──
       const headerTop = 40;

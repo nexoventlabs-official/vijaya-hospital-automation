@@ -19,6 +19,8 @@
  * the next screen's data. Terminal screens fire `complete` and the webhook
  * dispatches the appropriate WhatsApp follow-up.
  */
+const hospitalConfig = require('../config/hospital.config');
+
 function buildFlowJSON() {
   return {
     version: '7.0',
@@ -71,7 +73,7 @@ function buildFlowJSON() {
               width: 1000,
               height: 125,
               'scale-type': 'cover',
-              'alt-text': 'Vijya Hospital',
+              'alt-text': hospitalConfig.businessName,
               visible: '${data.has_welcome_banner}',
             },
             { type: 'TextHeading', text: '${data.heading}' },
