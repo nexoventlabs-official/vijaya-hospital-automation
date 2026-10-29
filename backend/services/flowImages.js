@@ -5,8 +5,30 @@
  * preset at server boot if missing. Admin can update each slot's image via the
  * admin panel.
  */
+const axios = require('axios');
 const FlowImage = require('../models/FlowImage');
 const realtime = require('./realtime');
+
+// Meta accepts a message whose header image URL is broken, then silently
+// fails delivery. Check each URL is reachable before handing it out, and
+// cache the result briefly so we don't HEAD the CDN on every message.
+const REACH_TTL_MS = 5 * 60 * 1000;
+const _reach = new Map(); // url -> { ok, at }
+
+async function isReachable(url) {
+  const hit = _reach.get(url);
+  if (hit && Date.now() - hit.at < REACH_TTL_MS) return hit.ok;
+  let ok = false;
+  try {
+    const r = await axios.head(url, { timeout: 5000, validateStatus: () => true });
+    ok = r.status >= 200 && r.status < 300;
+  } catch {
+    ok = false;
+  }
+  if (!ok) console.warn('[flowImages] image not reachable, skipping header:', url);
+  _reach.set(url, { ok, at: Date.now() });
+  return ok;
+}
 
 const REQUIRED_KEYS = [
   // Chat-message headers (WhatsApp interactive messages)
@@ -58,7 +80,9 @@ async function ensureKeysExist() {
 
 async function getUrl(key) {
   const doc = await FlowImage.findOne({ key }).lean();
-  return doc?.imageUrl || '';
+  const url = doc?.imageUrl || '';
+  if (!url) return '';
+  return (await isReachable(url)) ? url : '';
 }
 
 async function getMap(keys) {
