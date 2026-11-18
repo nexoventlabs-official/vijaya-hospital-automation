@@ -87,7 +87,12 @@ async function getUrl(key) {
 
 async function getMap(keys) {
   const docs = await FlowImage.find({ key: { $in: keys } }).lean();
-  return Object.fromEntries(docs.map((d) => [d.key, d.imageUrl || '']));
+  const result = {};
+  await Promise.all(docs.map(async (d) => {
+    const url = d.imageUrl || '';
+    result[d.key] = url && (await isReachable(url)) ? url : '';
+  }));
+  return result;
 }
 
 async function setUrl(key, { imageUrl, publicId }) {
