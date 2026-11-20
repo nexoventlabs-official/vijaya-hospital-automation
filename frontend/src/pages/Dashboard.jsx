@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Calendar, Users, Stethoscope, IndianRupee, UserPlus, Clock,
-  ArrowRight, Activity, Sparkles, MessageCircle, RefreshCw, CheckCircle2,
+  ArrowRight, RefreshCw,
 } from 'lucide-react';
 import api from '../api';
 import { subscribe } from '../realtime';
 import PairedHeading from '../components/PairedHeading.jsx';
 import { SkeletonStats, SkeletonTable } from '../components/Skeleton.jsx';
-import JoinedOfferPanel from '../components/JoinedOfferPanel.jsx';
 
 const cards = [
   {
@@ -90,7 +89,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Paired Chapter Heading */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-edge/40">
         <PairedHeading
@@ -116,32 +115,6 @@ export default function Dashboard() {
           <Link to="/appointments" className="btn-primary text-sm h-11">
             <span>All Bookings</span>
             <ArrowRight size={15} />
-          </Link>
-        </div>
-      </div>
-
-      {/* Saturated Proof & Capability Intermission Band */}
-      <div className="rounded-[24px] bg-[#edf5ff] dark:bg-dark-card p-6 sm:p-8 border border-brand-blue/20 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-        <div className="flex items-center gap-4 relative z-10">
-          <div className="w-14 h-14 rounded-2xl bg-brand-blue text-white flex items-center justify-center shadow-glow-blue flex-shrink-0">
-            <MessageCircle size={28} />
-          </div>
-          <div>
-            <div className="font-medium text-lg text-ink dark:text-white">
-              WhatsApp Cloud Bot Running 24/7
-            </div>
-            <div className="text-sm text-muted dark:text-dark-muted mt-0.5">
-              Patients receive instant confirmation slips & Google Maps directions immediately after scheduling.
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 relative z-10 flex-shrink-0">
-          <Link to="/appointments?status=today" className="btn-primary text-sm h-10 px-5">
-            Today's Queue
-          </Link>
-          <Link to="/doctors" className="btn-secondary text-sm h-10 px-5">
-            Doctor Roster
           </Link>
         </div>
       </div>
@@ -198,10 +171,10 @@ export default function Dashboard() {
         </div>
 
         {loading ? (
-          <SkeletonTable rows={4} cols={5} />
+          <SkeletonTable rows={4} cols={6} />
         ) : !data.recent?.length ? (
           <div className="card-feature text-center py-16 space-y-3">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-stage-gray/50 flex items-center justify-center text-muted">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-stage-gray/50 flex items-center justify-center text-muted">
               <Calendar size={24} />
             </div>
             <div className="text-base font-medium text-ink dark:text-white">No bookings yet today</div>
@@ -215,7 +188,7 @@ export default function Dashboard() {
               <table className="min-w-full text-sm">
                 <thead className="bg-[#f4f4f5]/60 dark:bg-dark-card/40 border-b border-edge/60 text-xs font-medium text-muted uppercase tracking-wider">
                   <tr>
-                    <th className="text-left px-6 py-4">Booking Ref</th>
+                    <th className="text-left px-6 py-4 whitespace-nowrap">Appointment ID</th>
                     <th className="text-left px-6 py-4">Patient Profile</th>
                     <th className="text-left px-6 py-4">Physician & Section</th>
                     <th className="text-left px-6 py-4">Date & Slot</th>
@@ -226,8 +199,10 @@ export default function Dashboard() {
                 <tbody className="divide-y divide-edge/40">
                   {data.recent.map((a) => (
                     <tr key={a._id} className="hover:bg-control/30 transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs font-semibold text-brand-blue">
-                        {a.code}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-mono text-xs font-semibold text-brand-blue bg-brand-tint dark:bg-brand-blue/20 py-1 px-3 rounded-full border border-brand-blue/30 whitespace-nowrap inline-block">
+                          {a.code}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-ink dark:text-white text-sm">
@@ -274,9 +249,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-
-      {/* Joined Miniature Product Theatre */}
-      <JoinedOfferPanel />
     </div>
   );
 }

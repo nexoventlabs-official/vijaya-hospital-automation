@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Eye, RefreshCw, Search, Calendar, FileSpreadsheet, Filter } from 'lucide-react';
+import { Eye, RefreshCw, Search, Calendar, FileSpreadsheet } from 'lucide-react';
 import api from '../api';
 import { subscribe } from '../realtime';
 import PairedHeading from '../components/PairedHeading.jsx';
@@ -129,7 +129,7 @@ export default function Appointments() {
           </span>
           <input
             className="input pl-11 h-11 text-xs rounded-full bg-canvas dark:bg-dark-canvas"
-            placeholder="Search code, patient, phone or doctor…"
+            placeholder="Search appointment ID, patient, phone or doctor…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -145,8 +145,8 @@ export default function Appointments() {
             <table className="min-w-full text-sm">
               <thead className="bg-[#f4f4f5]/60 dark:bg-dark-card/40 border-b border-edge/60 text-xs font-medium text-muted uppercase tracking-wider">
                 <tr>
-                  <th className="text-left px-6 py-4">Reference</th>
-                  <th className="text-left px-6 py-4">Date & Time</th>
+                  <th className="text-left px-6 py-4 whitespace-nowrap">Appointment ID</th>
+                  <th className="text-left px-6 py-4 whitespace-nowrap">Date & Time</th>
                   <th className="text-left px-6 py-4">Patient Profile</th>
                   <th className="text-left px-6 py-4">Doctor & Section</th>
                   <th className="text-left px-6 py-4">Fee</th>
@@ -158,12 +158,12 @@ export default function Appointments() {
               <tbody className="divide-y divide-edge/40">
                 {filtered.map((a) => (
                   <tr key={a._id} className="hover:bg-control/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-xs font-semibold text-brand-blue bg-brand-tint dark:bg-brand-blue/20 py-1 px-2.5 rounded-full border border-brand-blue/30">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="font-mono text-xs font-semibold text-brand-blue bg-brand-tint dark:bg-brand-blue/20 py-1.5 px-3.5 rounded-full border border-brand-blue/30 whitespace-nowrap inline-block tracking-wide">
                         {a.code}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-ink dark:text-white text-xs">{a.date}</div>
                       <div className="text-[11px] text-muted mt-0.5">{a.timeLabel || a.time}</div>
                     </td>
@@ -175,10 +175,10 @@ export default function Appointments() {
                       <div className="font-medium text-ink dark:text-white text-sm">{a.doctorName}</div>
                       <div className="text-xs text-muted">{a.departmentName || 'General'}</div>
                     </td>
-                    <td className="px-6 py-4 font-medium text-ink dark:text-white text-sm">
+                    <td className="px-6 py-4 font-medium text-ink dark:text-white text-sm whitespace-nowrap">
                       ₹{a.fee}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-xs font-medium text-ink dark:text-white">
                         {a.paymentMode === 'online' ? 'Online Gateway' : 'Pay at Hospital'}
                       </div>
@@ -190,10 +190,10 @@ export default function Appointments() {
                         {a.paymentStatus === 'paid' ? 'Paid in Full' : 'Pending Counter'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`badge status-${a.status}`}>{a.status}</span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <Link
                         to={`/appointments/${a._id}`}
                         className="btn-sm bg-control dark:bg-dark-card text-brand-blue hover:bg-stage-gray inline-flex items-center gap-1.5"

@@ -2,13 +2,12 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Stethoscope, CalendarOff, Image as ImageIcon,
   Settings as SettingsIcon, LogOut, UserPlus, CreditCard, Receipt, Crown, ShoppingCart,
-  Menu, X, Sun, Moon, Sparkles, ChevronRight,
+  Menu, X, Sun, Moon, ChevronRight,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../api';
 import { ensureOpen, close as closeRealtime } from '../realtime';
 import { useTheme } from './ThemeContext.jsx';
-import GlobalFooter from './GlobalFooter.jsx';
 
 const ADMIN_NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, color: 'text-brand-sky bg-brand-sky/10', end: true },
@@ -68,7 +67,7 @@ export default function Layout({ user, setAuth }) {
   const premium = !isSuper && status?.active;
 
   return (
-    <div className="min-h-screen flex font-effra bg-canvas text-ink relative">
+    <div className="h-screen w-screen flex font-effra bg-canvas text-ink overflow-hidden">
       {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
@@ -77,16 +76,16 @@ export default function Layout({ user, setAuth }) {
         />
       )}
 
-      {/* Sidebar: Polished App Drawer */}
+      {/* Sidebar: Fixed, full-height, independently scrolling navigation */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-canvas dark:bg-dark-canvas border-r border-edge/60 flex flex-col transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-canvas dark:bg-dark-canvas border-r border-edge/60 flex flex-col flex-shrink-0 transform transition-transform duration-300 ease-in-out lg:static lg:h-full lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Lockup */}
-        <div className="p-6 border-b border-edge/50 flex items-center justify-between">
+        <div className="p-6 border-b border-edge/50 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-[14px] bg-brand-blue text-white flex items-center justify-center font-bold text-xl shadow-glow-blue">
+            <div className="w-10 h-10 rounded-[14px] bg-brand-blue text-white flex items-center justify-center font-bold text-xl shadow-glow-blue flex-shrink-0">
               +
             </div>
             <div>
@@ -151,7 +150,7 @@ export default function Layout({ user, setAuth }) {
         </nav>
 
         {/* Theme and User Footer Box */}
-        <div className="p-4 border-t border-edge/50 bg-[#f7f7f7]/60 dark:bg-dark-card/30 space-y-3">
+        <div className="p-4 border-t border-edge/50 bg-[#f7f7f7]/60 dark:bg-dark-card/30 space-y-3 flex-shrink-0">
           {/* Theme Selector Pill */}
           <button
             onClick={toggleTheme}
@@ -185,10 +184,10 @@ export default function Layout({ user, setAuth }) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      {/* Main Content Area: Independently scrolling, full height */}
+      <main className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto">
         {/* Sticky 44px Navigation Bar */}
-        <header className="sticky top-0 z-30 h-14 bg-canvas/80 dark:bg-dark-canvas/80 backdrop-blur-md border-b border-edge/50 px-4 sm:px-8 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-30 h-14 bg-canvas/90 dark:bg-dark-canvas/90 backdrop-blur-md border-b border-edge/50 px-4 sm:px-8 flex items-center justify-between gap-4 flex-shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -252,13 +251,10 @@ export default function Layout({ user, setAuth }) {
           </div>
         </header>
 
-        {/* Page Container */}
-        <div className="flex-1 w-full max-w-[1024px] mx-auto px-4 sm:px-8 py-8 md:py-12">
+        {/* Page Container: Full width, removed large side gap */}
+        <div className="flex-1 w-full px-4 sm:px-8 lg:px-10 py-6 sm:py-8">
           <Outlet />
         </div>
-
-        {/* Universal Black 4-Column Footer */}
-        <GlobalFooter />
       </main>
     </div>
   );

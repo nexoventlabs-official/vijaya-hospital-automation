@@ -1,37 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Crown, Check, ShoppingCart, RefreshCw, CalendarClock,
-  Sparkles, HelpCircle, ChevronDown, Bot, ShieldCheck, Zap,
-} from 'lucide-react';
+import { Crown, Check } from 'lucide-react';
 import api from '../api';
 import PairedHeading from '../components/PairedHeading.jsx';
-import JoinedOfferPanel from '../components/JoinedOfferPanel.jsx';
 import { SkeletonStats } from '../components/Skeleton.jsx';
 
 function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
-
-const FAQS = [
-  {
-    q: 'How does WhatsApp automation work with Meta Cloud API?',
-    a: 'When patients message your official hospital WhatsApp number, Meta routes the message to our flow engine. The bot greets patients in their chosen language (English or Telugu), lets them pick a department & doctor, select available slots, and immediately generates an appointment PDF slip.',
-  },
-  {
-    q: 'What happens if a doctor takes emergency leave or is absent?',
-    a: 'The admin simply clicks "Mark Absent" on the doctor profile for that date. The platform automatically postpones all booked appointments to the doctor’s next available slots and immediately notifies each patient on WhatsApp with the updated appointment pass.',
-  },
-  {
-    q: 'Can our staff also collect consultation payments at the counter?',
-    a: 'Yes! Both online payment gateway collection and "Pay at Hospital Counter" modes are supported. Receptionists can mark pending cash or UPI payments as "Received" with a single click.',
-  },
-  {
-    q: 'Are our patient consultation records backed up to Google Sheets?',
-    a: 'Yes! You can sync all active or historical appointments directly into your hospital’s designated Google Sheet spreadsheet for long-term audit and reception reporting.',
-  },
-];
 
 export default function Purchase() {
   const [plans, setPlans] = useState([]);
@@ -41,7 +18,6 @@ export default function Purchase() {
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState(null);
   const [params, setParams] = useSearchParams();
-  const [faqOpen, setFaqOpen] = useState({ 0: true });
 
   async function load() {
     setLoading(true);
@@ -111,12 +87,10 @@ export default function Purchase() {
   const active = status?.active;
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Paired Chapter Heading */}
-      <div className="text-center max-w-3xl mx-auto space-y-3">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-edge/40">
         <PairedHeading
-          align="center"
-          size="hero"
           eyebrow="Flexible Subscriptions."
           headline="Automate Patient Care."
           description="Choose a transparent subscription tier to unlock instant WhatsApp bookings, automated rescheduling, and unlimited patient passes."
@@ -297,58 +271,6 @@ export default function Purchase() {
           })}
         </div>
       )}
-
-      {/* Frequently Asked Questions Accordion */}
-      <div className="max-w-3xl mx-auto space-y-6 pt-8">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-ink dark:text-white">
-            Frequently Asked Questions
-          </h2>
-          <p className="text-sm text-muted">
-            Practical answers about setup, WhatsApp bots, and billing.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {FAQS.map((faq, i) => {
-            const isOpen = !!faqOpen[i];
-            return (
-              <div
-                key={i}
-                className="card-feature p-0 overflow-hidden border border-edge/50 dark:border-edge/40"
-              >
-                <button
-                  onClick={() => setFaqOpen({ ...faqOpen, [i]: !isOpen })}
-                  className="w-full px-6 py-4 flex items-center justify-between text-left gap-4 hover:bg-control/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-brand-violet/15 text-brand-violet flex items-center justify-center flex-shrink-0">
-                      <HelpCircle size={15} />
-                    </div>
-                    <span className="font-medium text-base text-ink dark:text-white">
-                      {faq.q}
-                    </span>
-                  </div>
-                  <ChevronDown
-                    size={16}
-                    className={`text-muted transition-transform duration-200 ${
-                      isOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                {isOpen && (
-                  <div className="px-6 pb-5 pt-1 text-sm text-muted dark:text-dark-muted leading-relaxed border-t border-edge/30">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Joined Miniature Product Theatre */}
-      <JoinedOfferPanel />
     </div>
   );
 }
