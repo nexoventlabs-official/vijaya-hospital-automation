@@ -2,38 +2,39 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Stethoscope, CalendarOff, Image as ImageIcon,
   Settings as SettingsIcon, LogOut, UserPlus, CreditCard, Receipt, Crown, ShoppingCart,
-  Menu, X,
+  Menu, X, Sun, Moon, Sparkles, ChevronRight,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../api';
 import { ensureOpen, close as closeRealtime } from '../realtime';
+import { useTheme } from './ThemeContext.jsx';
+import GlobalFooter from './GlobalFooter.jsx';
 
-// Pages every hospital admin can access (everything EXCEPT Flow Images).
 const ADMIN_NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/appointments', label: 'Appointments', icon: Calendar },
-  { to: '/departments', label: 'Departments', icon: Users },
-  { to: '/doctors', label: 'Doctors', icon: Stethoscope },
-  { to: '/holidays', label: 'Holidays', icon: CalendarOff },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, color: 'text-brand-sky bg-brand-sky/10', end: true },
+  { to: '/appointments', label: 'Appointments', icon: Calendar, color: 'text-brand-blue bg-brand-blue/10' },
+  { to: '/departments', label: 'Departments', icon: Users, color: 'text-brand-violet bg-brand-violet/10' },
+  { to: '/doctors', label: 'Doctors', icon: Stethoscope, color: 'text-emerald-500 bg-emerald-500/10' },
+  { to: '/holidays', label: 'Holidays', icon: CalendarOff, color: 'text-brand-gold bg-brand-gold/10' },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, color: 'text-muted bg-stage-gray/50' },
 ];
 
-// Super admin: all admin pages + Flow Images + platform management pages.
 const SUPER_NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/appointments', label: 'Appointments', icon: Calendar },
-  { to: '/departments', label: 'Departments', icon: Users },
-  { to: '/doctors', label: 'Doctors', icon: Stethoscope },
-  { to: '/holidays', label: 'Holidays', icon: CalendarOff },
-  { to: '/flow-images', label: 'Flow Images', icon: ImageIcon },
-  { to: '/create-admin', label: 'Create Admin', icon: UserPlus },
-  { to: '/plans', label: 'Plans', icon: CreditCard },
-  { to: '/plan-history', label: 'Plan History', icon: Receipt },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, color: 'text-brand-sky bg-brand-sky/10', end: true },
+  { to: '/appointments', label: 'Appointments', icon: Calendar, color: 'text-brand-blue bg-brand-blue/10' },
+  { to: '/departments', label: 'Departments', icon: Users, color: 'text-brand-violet bg-brand-violet/10' },
+  { to: '/doctors', label: 'Doctors', icon: Stethoscope, color: 'text-emerald-500 bg-emerald-500/10' },
+  { to: '/holidays', label: 'Holidays', icon: CalendarOff, color: 'text-brand-gold bg-brand-gold/10' },
+  { to: '/flow-images', label: 'Flow Images', icon: ImageIcon, color: 'text-pink-500 bg-pink-500/10' },
+  { to: '/create-admin', label: 'Create Admin', icon: UserPlus, color: 'text-brand-blue bg-brand-blue/10' },
+  { to: '/plans', label: 'Plans', icon: CreditCard, color: 'text-brand-violet bg-brand-violet/10' },
+  { to: '/plan-history', label: 'Plan History', icon: Receipt, color: 'text-brand-gold bg-brand-gold/10' },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, color: 'text-muted bg-stage-gray/50' },
 ];
 
 export default function Layout({ user, setAuth }) {
   const nav = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const isSuper = user?.role === 'superadmin';
   const NAV = isSuper ? SUPER_NAV : ADMIN_NAV;
   const [status, setStatus] = useState(null);
@@ -41,23 +42,19 @@ export default function Layout({ user, setAuth }) {
 
   useEffect(() => { ensureOpen(); }, []);
 
-  // Periodically re-validate the session against the backend. If the super
-  // admin deletes or disables this account, the next check returns 401 and the
-  // api interceptor clears the token + redirects to /login automatically —
-  // even if the admin is idle and making no other requests.
   useEffect(() => {
     const id = setInterval(() => {
-      api.get('/auth/verify').catch(() => { /* 401 handled by api interceptor */ });
+      api.get('/auth/verify').catch(() => {});
     }, 30000);
     return () => clearInterval(id);
   }, []);
 
   async function loadStatus() {
-    if (isSuper) return; // super admin doesn't purchase plans
+    if (isSuper) return;
     try {
       const r = await api.get('/billing/status');
       setStatus(r.data || null);
-    } catch { /* ignore */ }
+    } catch {}
   }
   useEffect(() => { loadStatus(); }, [isSuper]);
 
@@ -71,122 +68,197 @@ export default function Layout({ user, setAuth }) {
   const premium = !isSuper && status?.active;
 
   return (
-    <div className="h-screen flex font-mint overflow-hidden relative">
-      {/* Mobile Sidebar Backdrop overlay */}
+    <div className="min-h-screen flex font-effra bg-canvas text-ink relative">
+      {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden transition-opacity duration-300"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity duration-300"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar: Polished App Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-60 bg-midnight-pine text-white flex flex-col border-r border-arctic-mist/10 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-canvas dark:bg-dark-canvas border-r border-edge/60 flex flex-col transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
-          <div>
-            <div className="font-bold text-lg flex items-center gap-2 font-grenette tracking-wide">
-              Vijya Hospital
-              {premium && <Crown size={16} className="text-pale-mint fill-pale-mint" title="Premium — active plan" />}
+        {/* Brand Lockup */}
+        <div className="p-6 border-b border-edge/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-[14px] bg-brand-blue text-white flex items-center justify-center font-bold text-xl shadow-glow-blue">
+              +
             </div>
-            <div className="text-xs text-soft-stone mt-1">{isSuper ? 'Super Admin Panel' : 'Admin Panel'}</div>
+            <div>
+              <div className="font-medium text-lg leading-tight tracking-tight flex items-center gap-1.5 text-ink dark:text-white">
+                Vijya Care
+                {premium && <Crown size={15} className="text-brand-gold fill-brand-gold" title="Active Plan" />}
+              </div>
+              <div className="text-xs text-muted dark:text-dark-muted font-normal mt-0.5">
+                {isSuper ? 'Platform Superadmin' : 'Hospital Operations'}
+              </div>
+            </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-arctic-mist/80 hover:bg-white/5 hover:text-white transition-colors"
+            className="lg:hidden p-1.5 rounded-full text-muted hover:bg-control"
           >
             <X size={18} />
           </button>
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-auto">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+
+        {/* Navigation list */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted dark:text-dark-muted px-3 py-2">
+            Navigation Menu
+          </div>
+          {NAV.map(({ to, label, icon: Icon, color, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                `group flex items-center justify-between px-3.5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-zenith-teal text-pale-mint font-medium shadow-none'
-                    : 'text-arctic-mist/80 hover:bg-white/5 hover:text-white'
+                    ? 'bg-brand-blue text-white shadow-sm font-semibold'
+                    : 'text-ink dark:text-white hover:bg-control dark:hover:bg-dark-card'
                 }`
               }
             >
-              <Icon size={18} /> {label}
+              {({ isActive }) => (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                        isActive ? 'bg-white/20 text-white' : color
+                      }`}
+                    >
+                      <Icon size={15} />
+                    </span>
+                    <span>{label}</span>
+                  </div>
+                  <ChevronRight
+                    size={14}
+                    className={`transition-transform opacity-0 group-hover:opacity-100 ${
+                      isActive ? 'opacity-100 text-white' : 'text-muted'
+                    }`}
+                  />
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10 bg-black/10">
-          <div className="text-xs text-soft-stone mb-1.5">Signed in as</div>
-          <div className="text-sm font-medium flex items-center gap-1.5 text-white">
-            {user?.name || user?.username || 'Admin'}
-            {premium && <Crown size={13} className="text-pale-mint fill-pale-mint" />}
-          </div>
+
+        {/* Theme and User Footer Box */}
+        <div className="p-4 border-t border-edge/50 bg-[#f7f7f7]/60 dark:bg-dark-card/30 space-y-3">
+          {/* Theme Selector Pill */}
           <button
-            onClick={logout}
-            className="mt-3.5 w-full inline-flex items-center justify-center gap-2 text-xs bg-white/5 hover:bg-white/15 text-white px-3 py-2 rounded-buttons transition-all duration-200"
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-full bg-canvas dark:bg-dark-card border border-edge/60 text-xs text-ink dark:text-white hover:bg-control transition-colors"
           >
-            <LogOut size={13} /> Logout
+            <span className="flex items-center gap-2">
+              {theme === 'dark' ? <Moon size={14} className="text-brand-violet" /> : <Sun size={14} className="text-brand-yellow" />}
+              <span>{theme === 'dark' ? 'Charcoal Theatre' : 'Bright Canvas'}</span>
+            </span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-control dark:bg-dark-canvas text-muted">
+              Toggle
+            </span>
           </button>
+
+          {/* User badge */}
+          <div className="flex items-center justify-between pt-1">
+            <div className="min-w-0 pr-2">
+              <div className="text-xs text-muted dark:text-dark-muted">Signed in as</div>
+              <div className="text-sm font-medium truncate text-ink dark:text-white">
+                {user?.name || user?.username || 'Admin'}
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="p-2 rounded-full text-muted hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 bg-canvas-white overflow-auto flex flex-col text-midnight-pine">
-        {/* Header / Top bar */}
-        <div className={`sticky top-0 z-30 bg-canvas-white border-b border-arctic-mist px-6 py-3 flex items-center justify-between gap-3 ${isSuper ? 'lg:hidden' : ''}`}>
-          {/* Left: Mobile hamburger menu toggle */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Sticky 44px Navigation Bar */}
+        <header className="sticky top-0 z-30 h-14 bg-canvas/80 dark:bg-dark-canvas/80 backdrop-blur-md border-b border-edge/50 px-4 sm:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-lg text-soft-stone hover:bg-arctic-mist/40 transition-colors"
+              className="lg:hidden p-2 rounded-full text-ink dark:text-white hover:bg-control"
             >
               <Menu size={20} />
             </button>
-            <span className="font-bold text-base font-grenette tracking-wide text-midnight-pine lg:hidden">
-              Vijya Hospital
-            </span>
+            <div className="flex items-center gap-2 lg:hidden font-medium text-ink dark:text-white">
+              <div className="w-7 h-7 rounded-lg bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
+                +
+              </div>
+              <span>Vijya Care</span>
+            </div>
+            <div className="hidden lg:flex items-center gap-2 text-xs text-muted">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Meta WhatsApp Cloud Engine Active</span>
+            </div>
           </div>
 
-          {/* Right: Premium / plan status (admins only) */}
+          {/* Header Action controls */}
           <div className="flex items-center gap-3">
             {!isSuper && (
               status?.active ? (
-                <div className="flex items-center gap-3">
-                  <span className="badge bg-pale-mint/40 text-zenith-teal border-pale-mint inline-flex items-center gap-1.5 px-3 py-1 font-semibold">
-                    <Crown size={13} className="fill-zenith-teal" /> Premium
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="badge bg-brand-tint text-brand-blue border border-brand-blue/30 hidden sm:inline-flex items-center gap-1.5">
+                    <Crown size={13} className="text-brand-blue" />
+                    <span>{status.plan?.planName || 'Active'}</span>
+                    <span className="text-muted">({status.daysLeft}d left)</span>
                   </span>
-                  <span className="text-sm text-soft-stone hidden sm:inline">
-                    {status.plan?.planName} · <strong>{status.daysLeft}</strong> day{status.daysLeft === 1 ? '' : 's'} left
-                  </span>
-                  <button onClick={() => nav('/purchase')} className="btn-secondary py-1.5 px-3.5 text-xs font-semibold">
-                    <CreditCard size={14} /> Renew
+                  <button
+                    onClick={() => nav('/purchase')}
+                    className="btn-sm bg-control text-brand-blue hover:bg-stage-gray"
+                  >
+                    Renew
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-rose-600 font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
-                    <span className="hidden sm:inline">No active plan — WhatsApp automation is off</span>
-                    <span className="sm:hidden">Automation Off</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="text-xs text-rose-500 font-medium hidden sm:inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    Automation Disabled
                   </span>
-                  <button onClick={() => nav('/purchase')} className="btn-primary py-1.5 px-3.5 text-xs font-semibold">
-                    <ShoppingCart size={14} /> Purchase
+                  <button
+                    onClick={() => nav('/purchase')}
+                    className="btn-sm bg-brand-blue text-white hover:bg-[#1a79ff]"
+                  >
+                    <ShoppingCart size={13} />
+                    <span>Purchase Plan</span>
                   </button>
                 </div>
               )
             )}
-          </div>
-        </div>
 
-        {/* Content body with responsive spacing */}
-        <div className="p-4 sm:p-8 flex-1">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full text-muted hover:text-ink hover:bg-control transition-colors"
+              title="Toggle Light / Charcoal Theatre"
+            >
+              {theme === 'dark' ? <Sun size={17} className="text-brand-yellow" /> : <Moon size={17} />}
+            </button>
+          </div>
+        </header>
+
+        {/* Page Container */}
+        <div className="flex-1 w-full max-w-[1024px] mx-auto px-4 sm:px-8 py-8 md:py-12">
           <Outlet />
         </div>
+
+        {/* Universal Black 4-Column Footer */}
+        <GlobalFooter />
       </main>
     </div>
   );

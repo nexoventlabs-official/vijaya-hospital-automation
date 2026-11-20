@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Save, KeyRound } from 'lucide-react';
+import { Save, KeyRound, Building2, MapPin, Phone, Upload, Lock, ShieldCheck } from 'lucide-react';
 import api from '../api';
+import PairedHeading from '../components/PairedHeading.jsx';
 
 export default function Settings({ user }) {
   const [s, setS] = useState({});
@@ -8,23 +9,26 @@ export default function Settings({ user }) {
   const [stampConfirmed, setStampConfirmed] = useState(null);
   const [stampCompleted, setStampCompleted] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
+  const [msg, setMsg] = useState(null);
 
   const isSuper = user?.role === 'superadmin';
 
-  // Change-password state
+  // Password state
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [pwSaving, setPwSaving] = useState(false);
-  const [pwMsg, setPwMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
+  const [pwMsg, setPwMsg] = useState(null);
 
   async function load() {
-    const r = await api.get('/settings');
-    setS(r.data || {});
+    try {
+      const r = await api.get('/settings');
+      setS(r.data || {});
+    } catch {}
   }
   useEffect(() => { load(); }, []);
 
   async function save() {
-    setSaving(true); setMsg(null);
+    setSaving(true);
+    setMsg(null);
     try {
       const fd = new FormData();
       [
@@ -39,198 +43,289 @@ export default function Settings({ user }) {
       if (stampCompleted) fd.append('stampCompleted', stampCompleted);
       const r = await api.put('/settings', fd);
       setS(r.data || {});
-      setMsg({ type: 'success', text: 'Settings saved successfully' });
+      setMsg({ type: 'success', text: 'Hospital settings saved and updated across WhatsApp bot flows.' });
       setFile(null);
       setStampConfirmed(null);
       setStampCompleted(null);
-      setTimeout(() => setMsg(null), 2000);
+      setTimeout(() => setMsg(null), 3000);
     } catch (e) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Save failed' });
-    } finally { setSaving(false); }
-  }
-
-  function f(k, label, opts = {}) {
-    return (
-      <div className={opts.full ? 'md:col-span-2' : ''}>
-        <label className="label">{label}</label>
-        {opts.textarea ? (
-          <textarea className="input" rows={2} value={s[k] || ''} onChange={(e) => setS({ ...s, [k]: e.target.value })} />
-        ) : (
-          <input type={opts.type || 'text'} className="input" value={s[k] ?? ''} onChange={(e) => setS({ ...s, [k]: e.target.value })} />
-        )}
-      </div>
-    );
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Save failed. Please check inputs.' });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function changePassword() {
     setPwMsg(null);
     if (!pw.currentPassword || !pw.newPassword) {
-      setPwMsg({ type: 'error', text: 'Please fill in all password fields' });
+      setPwMsg({ type: 'error', text: 'Please fill in both current and new passwords.' });
       return;
     }
     if (pw.newPassword !== pw.confirm) {
-      setPwMsg({ type: 'error', text: 'New passwords do not match' });
+      setPwMsg({ type: 'error', text: 'New passwords do not match.' });
       return;
     }
     setPwSaving(true);
     try {
-      await api.post('/auth/change-password', { currentPassword: pw.currentPassword, newPassword: pw.newPassword });
-      setPwMsg({ type: 'success', text: 'Password updated successfully' });
+      await api.post('/auth/change-password', {
+        currentPassword: pw.currentPassword,
+        newPassword: pw.newPassword,
+      });
+      setPwMsg({ type: 'success', text: 'Access password updated successfully.' });
       setPw({ currentPassword: '', newPassword: '', confirm: '' });
-      setTimeout(() => setPwMsg(null), 2500);
+      setTimeout(() => setPwMsg(null), 3000);
     } catch (e) {
-      setPwMsg({ type: 'error', text: e.response?.data?.error || 'Password change failed' });
-    } finally { setPwSaving(false); }
+      setPwMsg({ type: 'error', text: e.response?.data?.error || 'Password change failed.' });
+    } finally {
+      setPwSaving(false);
+    }
   }
 
   return (
-    <div className="space-y-6 max-w-4xl font-mint">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Settings</h1>
-        <p className="text-sm text-soft-stone mt-1">Configure clinical details, contact numbers, map settings, and login credentials.</p>
-      </div>
-
-      <div className="card p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {f('hospitalName', 'Hospital Name (English)')}
-        {f('hospitalNameTe', 'Hospital Name (Telugu)')}
-        {f('contactPhone', 'Contact Phone (primary, used by Call CTA)')}
-        {f('contactPhoneAlt', 'Contact Phone (alt)')}
-        {f('websiteUrl', 'Website URL')}
-        {f('addressLine', 'Address (English)', { textarea: true, full: true })}
-        {f('addressLineTe', 'Address (Telugu)', { textarea: true, full: true })}
-        {f('locationLabel', 'Location label (e.g. Main Branch)')}
-        {f('googleMapsPlaceId', 'Google Maps Place ID (optional)')}
-        <div className="md:col-span-2">
-          <label className="label">Google Maps Link</label>
-          <p className="text-[11px] text-soft-stone mb-1.5">
-            Open Google Maps → search your hospital → tap <strong>Share</strong> → copy the link. Paste it here. This is used in WhatsApp appointment messages.
-          </p>
-          <input
-            type="url"
-            className="input"
-            placeholder="https://maps.app.goo.gl/..."
-            value={s.googleMapsUrl ?? ''}
-            onChange={(e) => setS({ ...s, googleMapsUrl: e.target.value })}
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="label">Hospital Logo</label>
-          {s.logoUrl && <img src={s.logoUrl} alt="" className="w-24 h-24 rounded-elements object-cover mb-3 border border-arctic-mist" />}
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              id="hosp-logo-upload"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-            <label
-              htmlFor="hosp-logo-upload"
-              className="btn-secondary py-2 px-3.5 text-xs font-semibold cursor-pointer"
-            >
-              Choose Logo
-            </label>
-            <span className="text-xs text-soft-stone">
-              {file ? file.name : 'No file chosen'}
-            </span>
-          </div>
-        </div>
-
-        {/* Appointment PDF stamps — super admin only */}
-        {isSuper && (
-          <>
-            <div>
-              <label className="label">Appointment Confirmed Stamp</label>
-              <p className="text-[11px] text-soft-stone mb-2">Shown on PDFs once payment is confirmed.</p>
-              {s.stampConfirmedUrl && <img src={s.stampConfirmedUrl} alt="" className="w-20 h-20 rounded-elements object-contain mb-3 border border-arctic-mist bg-white" />}
-              <div className="flex items-center gap-3">
-                <input type="file" accept="image/png,image/jpeg,image/webp" id="stamp-confirmed-upload" className="hidden" onChange={(e) => setStampConfirmed(e.target.files?.[0] || null)} />
-                <label htmlFor="stamp-confirmed-upload" className="btn-secondary py-2 px-3.5 text-xs font-semibold cursor-pointer">Choose Stamp</label>
-                <span className="text-xs text-soft-stone">{stampConfirmed ? stampConfirmed.name : 'No file chosen'}</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="label">Consultation Completed Stamp</label>
-              <p className="text-[11px] text-soft-stone mb-2">Shown on PDFs when the appointment is completed.</p>
-              {s.stampCompletedUrl && <img src={s.stampCompletedUrl} alt="" className="w-20 h-20 rounded-elements object-contain mb-3 border border-arctic-mist bg-white" />}
-              <div className="flex items-center gap-3">
-                <input type="file" accept="image/png,image/jpeg,image/webp" id="stamp-completed-upload" className="hidden" onChange={(e) => setStampCompleted(e.target.files?.[0] || null)} />
-                <label htmlFor="stamp-completed-upload" className="btn-secondary py-2 px-3.5 text-xs font-semibold cursor-pointer">Choose Stamp</label>
-                <span className="text-xs text-soft-stone">{stampCompleted ? stampCompleted.name : 'No file chosen'}</span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {msg && (
-        <div className={`p-4 rounded-xl border flex items-center gap-2.5 text-sm font-medium ${
-          msg.type === 'success'
-            ? 'bg-pale-mint/30 border-pale-mint text-zenith-teal'
-            : 'bg-rose-50 border-rose-200 text-rose-800'
-        }`}>
-          {msg.type === 'success' ? (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+    <div className="space-y-8">
+      {/* Paired Chapter Heading */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-edge/40">
+        <PairedHeading
+          eyebrow="Hospital Configuration."
+          headline="Identity, Maps & Security."
+          description="Update clinic contact details, WhatsApp auto-directions, printable header logos, and credentials."
+        />
+        <button
+          onClick={save}
+          disabled={saving}
+          className="btn-primary h-11 px-7 text-sm font-medium shadow-glow-blue"
+        >
+          {saving ? (
+            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
           ) : (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Save size={16} />
           )}
-          <span>{msg.text}</span>
-        </div>
-      )}
-      <div className="flex justify-end">
-        <button onClick={save} disabled={saving} className="btn-primary py-2.5 px-5 text-xs font-semibold">
-          <Save size={14} /> {saving ? 'Saving…' : 'Save Settings'}
+          <span>{saving ? 'Saving Changes…' : 'Save Hospital Settings'}</span>
         </button>
       </div>
 
-      {/* Change password */}
-      <div className="card p-6 space-y-5">
-        <div className="flex items-center gap-2 text-midnight-pine font-semibold font-grenette text-lg border-b border-arctic-mist pb-3">
-          <KeyRound size={18} className="text-zenith-teal" /> Change Password
+      {msg && (
+        <div
+          className={`p-4 rounded-[16px] text-sm font-medium flex items-center gap-2 border ${
+            msg.type === 'success'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-300'
+              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border-rose-300'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span>{msg.text}</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="label">Current Password</label>
-            <input type="password" className="input text-sm" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
+      )}
+
+      {/* Main Settings Card Shell */}
+      <div className="card-feature border border-edge/50 dark:border-edge/40 shadow-sm space-y-6">
+        <div className="flex items-center gap-3 pb-3 border-b border-edge/40">
+          <div className="w-10 h-10 rounded-xl bg-brand-blue/15 text-brand-blue flex items-center justify-center">
+            <Building2 size={18} />
           </div>
           <div>
-            <label className="label">New Password</label>
-            <input type="password" className="input text-sm" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Confirm New Password</label>
-            <input type="password" className="input text-sm" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
+            <h3 className="font-medium text-lg text-ink dark:text-white">Hospital Information</h3>
+            <div className="text-xs text-muted">Bilingual naming, phone numbers & location</div>
           </div>
         </div>
-        
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className="label">Hospital Name (English)</label>
+            <input
+              className="input"
+              value={s.hospitalName || ''}
+              onChange={(e) => setS({ ...s, hospitalName: e.target.value })}
+              placeholder="e.g. Vijya Hospital"
+            />
+          </div>
+
+          <div>
+            <label className="label">Hospital Name (Telugu - తెలుగు)</label>
+            <input
+              className="input"
+              value={s.hospitalNameTe || ''}
+              onChange={(e) => setS({ ...s, hospitalNameTe: e.target.value })}
+              placeholder="e.g. విజయ హాస్పిటల్"
+            />
+          </div>
+
+          <div>
+            <label className="label">Primary Phone (Used by WhatsApp Call CTA)</label>
+            <input
+              className="input"
+              value={s.contactPhone || ''}
+              onChange={(e) => setS({ ...s, contactPhone: e.target.value })}
+              placeholder="e.g. 919876543210"
+            />
+          </div>
+
+          <div>
+            <label className="label">Secondary / Reception Phone</label>
+            <input
+              className="input"
+              value={s.contactPhoneAlt || ''}
+              onChange={(e) => setS({ ...s, contactPhoneAlt: e.target.value })}
+              placeholder="e.g. 0866-2456789"
+            />
+          </div>
+
+          <div>
+            <label className="label">Official Website URL</label>
+            <input
+              className="input"
+              value={s.websiteUrl || ''}
+              onChange={(e) => setS({ ...s, websiteUrl: e.target.value })}
+              placeholder="https://vijyahospital.com"
+            />
+          </div>
+
+          <div>
+            <label className="label">Location Branch Label</label>
+            <input
+              className="input"
+              value={s.locationLabel || ''}
+              onChange={(e) => setS({ ...s, locationLabel: e.target.value })}
+              placeholder="e.g. Main Branch, MG Road"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label">Address (English)</label>
+            <textarea
+              className="input h-20 py-2.5 resize-none"
+              value={s.addressLine || ''}
+              onChange={(e) => setS({ ...s, addressLine: e.target.value })}
+              placeholder="Complete hospital street address"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label">Address (Telugu - తెలుగు)</label>
+            <textarea
+              className="input h-20 py-2.5 resize-none"
+              value={s.addressLineTe || ''}
+              onChange={(e) => setS({ ...s, addressLineTe: e.target.value })}
+              placeholder="పూర్తి హాస్పిటల్ చిరునామా"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label">Google Maps Link (Auto-Directions for WhatsApp)</label>
+            <input
+              className="input"
+              value={s.googleMapsUrl || ''}
+              onChange={(e) => setS({ ...s, googleMapsUrl: e.target.value })}
+              placeholder="https://maps.app.goo.gl/..."
+            />
+            <p className="text-[11px] text-muted mt-1.5">
+              Open Google Maps → search your hospital → tap <strong>Share</strong> → copy link. Patients receive a "Get Directions" button after booking.
+            </p>
+          </div>
+
+          {/* Hospital Logo Upload */}
+          <div className="md:col-span-2 pt-2">
+            <label className="label">Hospital Brand Logo (Printed on PDF passes)</label>
+            <div className="flex items-center gap-5">
+              {s.logoUrl && (
+                <img
+                  src={s.logoUrl}
+                  alt="Hospital Logo"
+                  className="w-16 h-16 rounded-[14px] object-contain bg-canvas dark:bg-dark-card border border-edge p-1 shadow-sm"
+                />
+              )}
+              <div className="space-y-1.5">
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="hosp-logo-file"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+                <label
+                  htmlFor="hosp-logo-file"
+                  className="btn-secondary h-10 px-4 text-xs font-semibold cursor-pointer inline-flex items-center gap-2"
+                >
+                  <Upload size={14} />
+                  <span>{file ? file.name : 'Choose Logo Image'}</span>
+                </label>
+                <div className="text-xs text-muted">
+                  PNG with transparent background recommended.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Password Management Card */}
+      <div className="card-feature border border-edge/50 dark:border-edge/40 shadow-sm space-y-6">
+        <div className="flex items-center gap-3 pb-3 border-b border-edge/40">
+          <div className="w-10 h-10 rounded-xl bg-brand-violet/15 text-brand-violet flex items-center justify-center">
+            <Lock size={18} />
+          </div>
+          <div>
+            <h3 className="font-medium text-lg text-ink dark:text-white">Security & Password</h3>
+            <div className="text-xs text-muted">Update administrative credentials</div>
+          </div>
+        </div>
+
         {pwMsg && (
-          <div className={`p-4 rounded-xl border flex items-center gap-2.5 text-sm font-medium ${
-            pwMsg.type === 'success'
-              ? 'bg-pale-mint/30 border-pale-mint text-zenith-teal'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}>
-            {pwMsg.type === 'success' ? (
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            )}
+          <div
+            className={`p-3.5 rounded-[14px] text-xs font-medium flex items-center gap-2 border ${
+              pwMsg.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                : 'bg-rose-50 text-rose-800 border-rose-300'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>{pwMsg.text}</span>
           </div>
         )}
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="label">Current Password</label>
+            <input
+              type="password"
+              className="input"
+              value={pw.currentPassword}
+              onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })}
+              placeholder="••••••••••••"
+            />
+          </div>
+
+          <div>
+            <label className="label">New Password</label>
+            <input
+              type="password"
+              className="input"
+              value={pw.newPassword}
+              onChange={(e) => setPw({ ...pw, newPassword: e.target.value })}
+              placeholder="••••••••••••"
+            />
+          </div>
+
+          <div>
+            <label className="label">Confirm New Password</label>
+            <input
+              type="password"
+              className="input"
+              value={pw.confirm}
+              onChange={(e) => setPw({ ...pw, confirm: e.target.value })}
+              placeholder="••••••••••••"
+            />
+          </div>
+        </div>
+
         <div className="flex justify-end pt-2">
-          <button onClick={changePassword} disabled={pwSaving} className="btn-primary py-2.5 px-5 text-xs font-semibold">
-            <KeyRound size={14} /> {pwSaving ? 'Updating…' : 'Update Password'}
+          <button
+            onClick={changePassword}
+            disabled={pwSaving}
+            className="btn-secondary h-11 px-6 text-xs font-medium"
+          >
+            <KeyRound size={14} />
+            <span>{pwSaving ? 'Updating Password…' : 'Update Access Password'}</span>
           </button>
         </div>
       </div>

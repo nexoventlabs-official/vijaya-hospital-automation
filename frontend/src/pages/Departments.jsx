@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image as ImageIcon, Users, X, Upload } from 'lucide-react';
 import api from '../api';
 import { subscribe } from '../realtime';
+import PairedHeading from '../components/PairedHeading.jsx';
+import { SkeletonTable } from '../components/Skeleton.jsx';
 
-const blank = { name: '', nameTe: '', description: '', descriptionTe: '', sortOrder: 0, active: true };
+const blank = {
+  name: '', nameTe: '', description: '', descriptionTe: '',
+  sortOrder: 0, active: true,
+};
 
 export default function Departments() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
@@ -14,9 +20,15 @@ export default function Departments() {
   const [err, setErr] = useState('');
 
   async function load() {
-    const r = await api.get('/departments');
-    setItems(r.data);
+    setLoading(true);
+    try {
+      const r = await api.get('/departments');
+      setItems(r.data || []);
+    } finally {
+      setLoading(false);
+    }
   }
+
   useEffect(() => {
     load();
     const off = subscribe('departments', () => load());
@@ -25,17 +37,25 @@ export default function Departments() {
 
   function open(item) {
     setEditing(item || 'new');
-    setForm(item ? {
-      name: item.name, nameTe: item.nameTe || '',
-      description: item.description || '', descriptionTe: item.descriptionTe || '',
-      sortOrder: item.sortOrder || 0, active: !!item.active,
-    } : blank);
+    setForm(
+      item
+        ? {
+            name: item.name,
+            nameTe: item.nameTe || '',
+            description: item.description || '',
+            descriptionTe: item.descriptionTe || '',
+            sortOrder: item.sortOrder || 0,
+            active: !!item.active,
+          }
+        : blank
+    );
     setFile(null);
     setErr('');
   }
 
   async function save() {
-    setSaving(true); setErr('');
+    setSaving(true);
+    setErr('');
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
@@ -45,8 +65,10 @@ export default function Departments() {
       setEditing(null);
       load();
     } catch (e) {
-      setErr(e.response?.data?.error || 'Save failed');
-    } finally { setSaving(false); }
+      setErr(e.response?.data?.error || 'Save failed. Please check fields.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function del(item) {
@@ -56,147 +78,230 @@ export default function Departments() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl font-mint">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Departments</h1>
-          <p className="text-sm text-soft-stone mt-1">Organize medical sections and services offered by the hospital.</p>
-        </div>
-        <button onClick={() => open(null)} className="btn-primary py-2.5 px-4 text-xs font-semibold">
-          <Plus size={14} /> Add Department
+    <div className="space-y-8">
+      {/* Paired Chapter Heading */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-edge/40">
+        <PairedHeading
+          eyebrow="Clinical Sections."
+          headline="Hospital Departments."
+          description="Organize clinical units, bilingual labels, and specialty services offered to WhatsApp patients."
+        />
+        <button
+          onClick={() => open(null)}
+          className="btn-primary h-11 text-sm font-medium"
+        >
+          <Plus size={16} />
+          <span>Add Department</span>
         </button>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-pale-amber/20 text-midnight-pine border-b border-arctic-mist font-grenette text-xs font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="text-left px-6 py-4">Icon</th>
-                <th className="text-left px-6 py-4">Name</th>
-                <th className="text-left px-6 py-4">Description</th>
-                <th className="text-left px-6 py-4">Order</th>
-                <th className="text-left px-6 py-4">Status</th>
-                <th className="text-right px-6 py-4"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-arctic-mist/70">
-              {items.map((d) => (
-                <tr key={d._id} className="hover:bg-pale-amber/5 transition-colors duration-150">
-                  <td className="px-6 py-4">
-                    {d.iconUrl
-                      ? <img src={d.iconUrl} alt="" className="w-10 h-10 rounded-elements object-cover border border-arctic-mist" />
-                      : <div className="w-10 h-10 rounded-elements bg-pale-amber/50 flex items-center justify-center text-soft-stone border border-arctic-mist"><ImageIcon size={16} /></div>}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-midnight-pine text-sm">{d.name}</div>
-                    <div className="text-xs text-soft-stone mt-0.5">{d.nameTe}</div>
-                  </td>
-                  <td className="px-6 py-4 text-soft-stone max-w-xs truncate">{d.description || '—'}</td>
-                  <td className="px-6 py-4 font-medium text-midnight-pine">{d.sortOrder}</td>
-                  <td className="px-6 py-4">
-                    <span className={`badge ${d.active ? 'bg-pale-mint/40 text-zenith-teal border-pale-mint' : 'bg-slate-50 text-soft-stone border-arctic-mist'}`}>
-                      {d.active ? 'Active' : 'Hidden'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1.5">
-                      <button onClick={() => open(d)} className="btn-ghost py-1 px-2.5 text-xs">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => del(d)} className="btn-ghost py-1 px-2.5 text-xs text-rose-600 hover:text-rose-700">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {!items.length && (
+      {/* Department Table or Skeleton */}
+      {loading ? (
+        <SkeletonTable rows={5} cols={6} />
+      ) : (
+        <div className="card-feature p-0 overflow-hidden border border-edge/50 dark:border-edge/40 shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-[#f4f4f5]/60 dark:bg-dark-card/40 border-b border-edge/60 text-xs font-medium text-muted uppercase tracking-wider">
                 <tr>
-                  <td colSpan="6" className="text-center py-12 text-soft-stone text-sm">
-                    No departments created yet.
-                  </td>
+                  <th className="text-left px-6 py-4">Icon</th>
+                  <th className="text-left px-6 py-4">Department Name</th>
+                  <th className="text-left px-6 py-4">Description</th>
+                  <th className="text-left px-6 py-4">Order</th>
+                  <th className="text-left px-6 py-4">Status</th>
+                  <th className="text-right px-6 py-4">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-edge/40">
+                {items.map((d) => (
+                  <tr key={d._id} className="hover:bg-control/30 transition-colors">
+                    <td className="px-6 py-4">
+                      {d.iconUrl ? (
+                        <img
+                          src={d.iconUrl}
+                          alt=""
+                          className="w-11 h-11 rounded-[14px] object-cover border border-edge"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-[14px] bg-brand-tint dark:bg-dark-card text-brand-blue flex items-center justify-center border border-edge/60">
+                          <Users size={18} />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-ink dark:text-white text-sm">{d.name}</div>
+                      <div className="text-xs text-muted mt-0.5">{d.nameTe || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4 text-muted text-xs max-w-xs truncate">
+                      {d.description || '—'}
+                    </td>
+                    <td className="px-6 py-4 font-mono font-medium text-ink dark:text-white text-xs">
+                      {d.sortOrder}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`badge ${
+                          d.active
+                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-control text-muted'
+                        }`}
+                      >
+                        {d.active ? 'Active' : 'Hidden'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => open(d)}
+                          className="p-2 rounded-full text-brand-blue hover:bg-brand-tint dark:hover:bg-brand-blue/20 transition-colors"
+                          title="Edit department"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => del(d)}
+                          className="p-2 rounded-full text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                          title="Remove department"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!items.length && (
+                  <tr>
+                    <td colSpan="6" className="py-16 text-center text-muted text-sm space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-stage-gray/50 flex items-center justify-center mx-auto text-muted mb-2">
+                        <Users size={20} />
+                      </div>
+                      <div className="font-medium text-ink dark:text-white">No departments added yet</div>
+                      <div className="text-xs">
+                        Create clinical departments like Cardiology, Pediatrics, General Medicine, etc.
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
+      {/* Edit / New Modal */}
       {editing && (
-        <Modal onClose={() => setEditing(null)} title={editing === 'new' ? 'New Department' : 'Edit Department'}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Name (English) *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-            <Input label="Name (Telugu)" value={form.nameTe} onChange={(v) => setForm({ ...form, nameTe: v })} />
-            <Input label="Description" value={form.description} onChange={(v) => setForm({ ...form, description: v })} />
-            <Input label="Description (Telugu)" value={form.descriptionTe} onChange={(v) => setForm({ ...form, descriptionTe: v })} />
-            <Input label="Sort Order" type="number" value={form.sortOrder} onChange={(v) => setForm({ ...form, sortOrder: v })} />
-            <div>
-              <label className="label">Active</label>
-              <select className="input text-sm" value={form.active ? 'true' : 'false'} onChange={(e) => setForm({ ...form, active: e.target.value === 'true' })}>
-                <option value="true">Yes</option>
-                <option value="false">No (hidden)</option>
-              </select>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="card-feature w-full max-w-lg bg-canvas dark:bg-dark-card border border-edge shadow-2xl p-6 sm:p-8 space-y-5 animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-edge/40 pb-3">
+              <h3 className="text-xl font-medium text-ink dark:text-white">
+                {editing === 'new' ? 'New Medical Department' : `Edit — ${editing.name}`}
+              </h3>
+              <button
+                onClick={() => setEditing(null)}
+                className="p-1.5 rounded-full text-muted hover:bg-control"
+              >
+                <X size={18} />
+              </button>
             </div>
-            <div className="md:col-span-2">
-              <label className="label">Icon image (optional)</label>
-              <div className="mt-1 flex items-center gap-3">
+
+            {err && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-medium">
+                {err}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="label">Department Name (English) *</label>
+                <input
+                  className="input"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="e.g. Cardiology"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="label">Department Name (Telugu - తెలుగు)</label>
+                <input
+                  className="input"
+                  value={form.nameTe}
+                  onChange={(e) => setForm({ ...form, nameTe: e.target.value })}
+                  placeholder="e.g. కార్డియాలజీ"
+                />
+              </div>
+
+              <div>
+                <label className="label">Short Description</label>
+                <textarea
+                  className="input h-20 py-2.5 resize-none"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Clinical services and outpatient hours"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Display Order</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={form.sortOrder}
+                    onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="label">WhatsApp Active</label>
+                  <select
+                    className="input"
+                    value={form.active ? 'true' : 'false'}
+                    onChange={(e) => setForm({ ...form, active: e.target.value === 'true' })}
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Hidden</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Section Icon</label>
                 <input
                   type="file"
                   accept="image/*"
-                  id="dept-file-upload"
+                  id="dept-icon-file"
                   className="hidden"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                 />
                 <label
-                  htmlFor="dept-file-upload"
-                  className="btn-secondary py-2 px-3 text-xs font-semibold cursor-pointer"
+                  htmlFor="dept-icon-file"
+                  className="btn-secondary h-10 px-4 text-xs font-semibold cursor-pointer inline-flex items-center gap-2"
                 >
-                  Choose File
+                  <Upload size={14} />
+                  <span>{file ? file.name : 'Upload Section Icon'}</span>
                 </label>
-                <span className="text-xs text-soft-stone">
-                  {file ? file.name : 'No file chosen'}
-                </span>
               </div>
             </div>
-          </div>
-          {err && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-lg mt-3 flex items-center gap-1.5">
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              {err}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-edge/40">
+              <button
+                onClick={() => setEditing(null)}
+                className="btn-secondary h-11 px-5 text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={save}
+                disabled={saving}
+                className="btn-primary h-11 px-6 text-xs"
+              >
+                {saving ? 'Saving…' : 'Save Department'}
+              </button>
             </div>
-          )}
-          <div className="flex justify-end gap-2.5 mt-6 border-t border-arctic-mist pt-4">
-            <button onClick={() => setEditing(null)} className="btn-secondary py-2 px-4 text-xs font-semibold">Cancel</button>
-            <button onClick={save} disabled={saving} className="btn-primary py-2 px-4 text-xs font-semibold">{saving ? 'Saving…' : 'Save'}</button>
           </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function Input({ label, value, onChange, type = 'text' }) {
-  return (
-    <div>
-      <label className="label">{label}</label>
-      <input className="input" type={type} value={value || ''} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
-function Modal({ children, onClose, title }) {
-  return (
-    <div className="fixed inset-0 bg-midnight-pine/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
-      <div className="card w-full max-w-2xl p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-arctic-mist pb-3.5 mb-5">
-          <h2 className="font-semibold text-lg text-midnight-pine font-grenette">{title}</h2>
-          <button onClick={onClose} className="text-soft-stone hover:text-midnight-pine w-8 h-8 rounded-full flex items-center justify-center hover:bg-pale-mint/30 transition-colors duration-150">✕</button>
         </div>
-        {children}
-      </div>
+      )}
     </div>
   );
 }

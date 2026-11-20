@@ -1,172 +1,279 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, CalendarOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, CalendarOff, Stethoscope, Clock, IndianRupee, X, Check } from 'lucide-react';
 import api from '../api';
 import { subscribe } from '../realtime';
+import PairedHeading from '../components/PairedHeading.jsx';
+import { SkeletonDoctor } from '../components/Skeleton.jsx';
 
 export default function Doctors() {
   const [items, setItems] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [absentFor, setAbsentFor] = useState(null);
   const [absentDate, setAbsentDate] = useState(new Date().toISOString().slice(0, 10));
   const [absentReason, setAbsentReason] = useState('Doctor unavailable');
-  const [movedMsg, setMovedMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
+  const [movedMsg, setMovedMsg] = useState(null);
+  const [postponing, setPostponing] = useState(false);
 
   async function load() {
-    const [d, deps] = await Promise.all([api.get('/doctors'), api.get('/departments')]);
-    setItems(d.data);
-    setDepartments(deps.data);
+    setLoading(true);
+    try {
+      const [d, deps] = await Promise.all([api.get('/doctors'), api.get('/departments')]);
+      setItems(d.data || []);
+      setDepartments(deps.data || []);
+    } finally {
+      setLoading(false);
+    }
   }
+
   useEffect(() => {
     load();
     const off1 = subscribe('doctors', () => load());
-    const off2 = subscribe('appointments', () => {}); // ensure stream open
+    const off2 = subscribe('appointments', () => {});
     return () => { off1(); off2(); };
   }, []);
 
   async function del(d) {
-    if (!confirm(`Delete doctor "${d.name}"?`)) return;
+    if (!confirm(`Are you sure you want to remove Dr. "${d.name}"?`)) return;
     await api.delete(`/doctors/${d._id}`);
     load();
   }
 
   async function postpone() {
     setMovedMsg(null);
+    setPostponing(true);
     try {
       const r = await api.post(`/doctors/${absentFor._id}/absent`, { date: absentDate, reason: absentReason });
-      setMovedMsg({ type: 'success', text: `Postponed ${r.data.moved} appointment(s) successfully.` });
-      setTimeout(() => { setAbsentFor(null); setMovedMsg(null); load(); }, 1200);
+      setMovedMsg({
+        type: 'success',
+        text: `Postponed ${r.data.moved} appointment(s). Patients notified on WhatsApp.`,
+      });
+      setTimeout(() => {
+        setAbsentFor(null);
+        setMovedMsg(null);
+        load();
+      }, 1500);
     } catch (e) {
       setMovedMsg({ type: 'error', text: e.response?.data?.error || 'Operation failed' });
+    } finally {
+      setPostponing(false);
     }
   }
 
   return (
-    <div className="space-y-6 max-w-6xl font-mint">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">Doctors</h1>
-          <p className="text-sm text-soft-stone mt-1">Manage physicians, schedules, fees, and daily absences.</p>
-        </div>
-        <Link to="/doctors/new" className="btn-primary py-2.5 px-4 text-xs font-semibold">
-          <Plus size={14} /> Add Doctor
+    <div className="space-y-8">
+      {/* Paired Chapter Heading */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-edge/40">
+        <PairedHeading
+          eyebrow="Clinical Faculty."
+          headline="Specialists & Availability."
+          description="Manage consultant profiles, daily consultation fees, and emergency absence postponements."
+        />
+        <Link to="/doctors/new" className="btn-primary h-11 text-sm font-medium">
+          <Plus size={16} />
+          <span>Register Doctor</span>
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map((d) => (
-          <div key={d._id} className="card p-5 flex flex-col justify-between hover:border-zenith-teal/50 hover:bg-pale-amber/10 transition-all duration-300">
-            <div>
-              <div className="flex gap-4">
-                {d.photoUrl ? (
-                  <img src={d.photoUrl} alt="" className="w-16 h-16 rounded-elements object-cover border border-arctic-mist shadow-none" />
-                ) : (
-                  <div className="w-16 h-16 rounded-elements bg-pale-amber/50 flex items-center justify-center text-soft-stone border border-arctic-mist font-semibold text-lg font-grenette">
-                    {d.name.charAt(0)}
+      {/* Grid of Doctor Cards */}
+      {loading ? (
+        <SkeletonDoctor count={6} />
+      ) : !items.length ? (
+        <div className="card-feature text-center py-16 space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-[24px] bg-brand-tint dark:bg-brand-blue/20 text-brand-blue flex items-center justify-center">
+            <Stethoscope size={28} />
+          </div>
+          <div>
+            <h3 className="text-xl font-medium text-ink dark:text-white">No doctors registered yet</h3>
+            <p className="text-xs text-muted max-w-md mx-auto mt-1">
+              Add your hospital's doctors to enable WhatsApp patients to select departments and book appointments.
+            </p>
+          </div>
+          <Link to="/doctors/new" className="btn-primary h-10 px-6 text-xs inline-flex">
+            Add First Specialist
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {items.map((d) => (
+            <div
+              key={d._id}
+              className="card-feature p-6 flex flex-col justify-between border border-edge/50 dark:border-edge/40 shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <div>
+                <div className="flex items-start gap-4">
+                  {d.photoUrl ? (
+                    <img
+                      src={d.photoUrl}
+                      alt={d.name}
+                      className="w-16 h-16 rounded-full object-cover border-4 border-canvas shadow-portrait-lift flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-brand-tint dark:bg-dark-card border-4 border-canvas text-brand-blue flex items-center justify-center font-medium text-xl shadow-portrait-lift flex-shrink-0">
+                      {d.name.charAt(0)}
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-base text-ink dark:text-white truncate">
+                      {d.name}
+                    </h3>
+                    <div className="text-xs text-muted truncate mt-0.5">
+                      {d.speciality || 'General Medicine'}
+                    </div>
+                    <div className="mt-2">
+                      <span className="badge bg-brand-tint text-brand-blue border border-brand-blue/30 text-[11px] font-medium">
+                        {d.department?.name || 'Department'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-edge/40 space-y-2 text-xs text-muted">
+                  <div className="flex justify-between items-center">
+                    <span>Consultation Fee:</span>
+                    <strong className="text-ink dark:text-white font-medium text-sm">₹{d.consultationFee}</strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Experience:</span>
+                    <strong className="text-ink dark:text-white font-medium">{d.experienceYears || 0} Years</strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Weekly Slot Windows:</span>
+                    <strong className="text-ink dark:text-white font-medium">{(d.weeklySlots || []).length} Slots</strong>
+                  </div>
+                </div>
+
+                {(d.absences || []).length > 0 && (
+                  <div className="mt-4 p-3 rounded-[14px] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-200 space-y-1">
+                    <div className="font-semibold flex items-center gap-1.5">
+                      <CalendarOff size={13} />
+                      <span>Upcoming Absence:</span>
+                    </div>
+                    <div className="font-mono text-[11px]">{d.absences.map((a) => a.date).join(', ')}</div>
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-base text-midnight-pine truncate font-grenette">{d.name}</div>
-                  <div className="text-xs text-soft-stone truncate mt-0.5">{d.speciality}</div>
-                  <div className="text-xs font-semibold text-zenith-teal mt-2 bg-pale-mint/40 py-0.5 px-2 rounded-md inline-block">
-                    {d.department?.name || '—'}
-                  </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-edge/40 flex items-center justify-between">
+                <span
+                  className={`badge ${
+                    d.active
+                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-control text-muted'
+                  }`}
+                >
+                  {d.active ? 'Available' : 'Hidden'}
+                </span>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setAbsentFor(d)}
+                    title="Mark Absent & Postpone"
+                    className="p-2 rounded-full text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                  >
+                    <CalendarOff size={16} />
+                  </button>
+                  <Link
+                    to={`/doctors/${d._id}`}
+                    title="Edit profile & schedule"
+                    className="p-2 rounded-full text-brand-blue hover:bg-brand-tint dark:hover:bg-brand-blue/20 transition-colors"
+                  >
+                    <Pencil size={16} />
+                  </Link>
+                  <button
+                    onClick={() => del(d)}
+                    title="Remove doctor"
+                    className="p-2 rounded-full text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
-              
-              <div className="mt-4 pt-3 border-t border-arctic-mist/75 text-xs text-soft-stone space-y-1">
-                <div>Consultation Fee: <strong className="text-midnight-pine">₹{d.consultationFee}</strong></div>
-                <div>Experience: <strong className="text-midnight-pine">{d.experienceYears || 0} years</strong></div>
-              </div>
-
-              {(d.absences || []).length > 0 && (
-                <div className="mt-3 p-2 bg-pale-amber/70 border border-amber-200/50 rounded-lg text-xs text-amber-800">
-                  <div className="font-semibold">Upcoming Absences:</div>
-                  <div className="mt-0.5 font-mono">{d.absences.map((abs) => abs.date).join(', ')}</div>
-                </div>
-              )}
             </div>
-
-            <div className="mt-5 pt-3 border-t border-arctic-mist/75 flex items-center justify-between gap-2">
-              <span className={`badge ${d.active ? 'bg-pale-mint/40 text-zenith-teal border-pale-mint' : 'bg-slate-50 text-soft-stone border-arctic-mist'}`}>
-                {d.active ? 'Active' : 'Hidden'}
-              </span>
-              <div className="flex gap-1">
-                <button onClick={() => setAbsentFor(d)} title="Mark absent" className="btn-ghost py-1.5 px-2.5 text-xs text-amber-700 hover:bg-amber-50">
-                  <CalendarOff size={14} />
-                </button>
-                <Link to={`/doctors/${d._id}`} className="btn-ghost py-1.5 px-2.5 text-xs">
-                  <Pencil size={14} />
-                </Link>
-                <button onClick={() => del(d)} className="btn-ghost py-1.5 px-2.5 text-xs text-rose-600 hover:text-rose-700">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {!items.length && (
-          <div className="card p-8 text-sm text-soft-stone text-center col-span-full py-12">
-            No doctors registered. {departments.length === 0 && 'Please register a department first.'}
-          </div>
-        )}
-      </div>
-
-      {absentFor && (
-        <Modal title={`Mark Absent — ${absentFor.name}`} onClose={() => setAbsentFor(null)}>
-          <p className="text-xs text-soft-stone mb-4 leading-relaxed bg-pale-amber/40 p-3 rounded-lg border border-amber-200/30">
-            All booked appointments for that day will be postponed automatically to the doctor's next available slot, and patients will be notified automatically on WhatsApp.
-          </p>
-          <div className="space-y-4">
-            <div>
-              <label className="label">Absent date</label>
-              <input type="date" className="input" value={absentDate} onChange={(e) => setAbsentDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Reason (sent to patients)</label>
-              <input className="input" value={absentReason} onChange={(e) => setAbsentReason(e.target.value)} />
-            </div>
-          </div>
-          
-          {movedMsg && (
-            <div className={`p-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 mt-3 ${
-              movedMsg.type === 'success'
-                ? 'bg-pale-mint/30 border-pale-mint text-zenith-teal'
-                : 'bg-rose-50 border-rose-200 text-rose-800'
-            }`}>
-              {movedMsg.type === 'success' ? (
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              )}
-              <span>{movedMsg.text}</span>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2.5 mt-6 border-t border-arctic-mist pt-4">
-            <button onClick={() => setAbsentFor(null)} className="btn-secondary py-2 px-4 text-xs font-semibold">Cancel</button>
-            <button onClick={postpone} className="btn-primary py-2 px-4 text-xs font-semibold">Postpone & Notify</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function Modal({ children, onClose, title }) {
-  return (
-    <div className="fixed inset-0 bg-midnight-pine/45 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
-      <div className="card w-full max-w-lg p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-arctic-mist pb-3.5 mb-5">
-          <h2 className="font-semibold text-lg text-midnight-pine font-grenette">{title}</h2>
-          <button onClick={onClose} className="text-soft-stone hover:text-midnight-pine w-8 h-8 rounded-full flex items-center justify-center hover:bg-pale-mint/30 transition-colors duration-150">✕</button>
+          ))}
         </div>
-        {children}
-      </div>
+      )}
+
+      {/* Mark Absent Modal Dialog */}
+      {absentFor && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="card-feature w-full max-w-lg bg-canvas dark:bg-dark-card border border-edge shadow-2xl p-6 sm:p-8 space-y-6 animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-edge/40 pb-4">
+              <div>
+                <h3 className="text-xl font-medium text-ink dark:text-white">
+                  Mark Doctor Absent
+                </h3>
+                <div className="text-xs text-muted mt-0.5">
+                  Dr. {absentFor.name} · Automated WhatsApp Postponement
+                </div>
+              </div>
+              <button
+                onClick={() => setAbsentFor(null)}
+                className="p-1.5 rounded-full text-muted hover:bg-control"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-[16px] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+              Every booked appointment on this date will automatically be shifted to the doctor's next open slot window, and an update message will be dispatched to each patient on WhatsApp.
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="label">Absence Date</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={absentDate}
+                  onChange={(e) => setAbsentDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="label">Reason (Sent to Patients)</label>
+                <input
+                  className="input"
+                  value={absentReason}
+                  onChange={(e) => setAbsentReason(e.target.value)}
+                  placeholder="e.g. Doctor attending emergency surgery"
+                />
+              </div>
+            </div>
+
+            {movedMsg && (
+              <div
+                className={`p-3.5 rounded-[14px] text-xs font-medium flex items-center gap-2 border ${
+                  movedMsg.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-50 text-rose-800 border-rose-300'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>{movedMsg.text}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setAbsentFor(null)}
+                className="btn-secondary h-11 px-5 text-xs"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={postpone}
+                disabled={postponing}
+                className="btn-primary h-11 px-6 text-xs"
+              >
+                {postponing ? 'Postponing & Notifying…' : 'Confirm Postpone & Send Notifications'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

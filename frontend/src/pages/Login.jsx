@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MessageCircle, ShieldCheck, Heart, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import api from '../api';
+import TranslucentWings from '../components/TranslucentWings.jsx';
+import PairedHeading from '../components/PairedHeading.jsx';
 
 export default function Login({ setAuth }) {
   const [username, setUsername] = useState('');
@@ -11,63 +14,161 @@ export default function Login({ setAuth }) {
 
   async function submit(e) {
     e.preventDefault();
-    setErr(''); setLoading(true);
+    setErr('');
+    setLoading(true);
     try {
       const r = await api.post('/auth/login', { username, password });
       localStorage.setItem('vh_token', r.data.token);
       setAuth(r.data.user);
       nav('/', { replace: true });
     } catch (e2) {
-      setErr(e2.response?.data?.error || 'Login failed');
-    } finally { setLoading(false); }
+      setErr(e2.response?.data?.error || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-midnight-pine via-warm-berry to-zenith-teal font-mint p-4 relative overflow-hidden">
-      {/* Decorative background visual glow */}
-      <div className="absolute w-96 h-96 rounded-full bg-soft-magenta/10 blur-3xl -top-20 -left-20 pointer-events-none"></div>
-      <div className="absolute w-96 h-96 rounded-full bg-pale-mint/10 blur-3xl -bottom-20 -right-20 pointer-events-none"></div>
-      
-      <form onSubmit={submit} className="card w-full max-w-sm p-8 space-y-5 bg-canvas-white shadow-2xl border-none relative z-10 animate-fade-in">
-        <div className="text-center">
-          <div className="text-3xl font-bold text-midnight-pine font-grenette tracking-wide">Vijya Hospital</div>
-          <div className="text-xs font-medium text-soft-stone mt-1.5 uppercase tracking-widest">Admin Control Panel</div>
-        </div>
-        
-        <div className="space-y-4 pt-2">
-          <div>
-            <label className="label">Username / Mobile</label>
-            <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter mobile or username" required />
+    <div className="min-h-screen bg-canvas dark:bg-dark-canvas text-ink dark:text-white flex flex-col justify-between font-effra relative overflow-hidden">
+      {/* Signature Translucent Candy Wings */}
+      <TranslucentWings />
+
+      {/* Main Hero & Login Theater Stage */}
+      <div className="relative z-10 w-full max-w-[1024px] mx-auto px-4 sm:px-8 pt-12 md:pt-20 pb-16 flex flex-col items-center">
+        {/* Product Identity Lockup */}
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="w-16 h-16 rounded-[24px] bg-brand-blue text-white flex items-center justify-center text-3xl font-bold shadow-glow-blue mb-4">
+            +
           </div>
-          <div>
-            <label className="label">Password</label>
-            <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+          <div className="text-sm font-medium uppercase tracking-widest text-brand-blue">
+            Vijya Hospital Console
           </div>
         </div>
 
-        {err && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-lg flex items-center gap-1.5 animate-shake">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span>{err}</span>
-          </div>
-        )}
+        {/* Paired Chapter Headline */}
+        <PairedHeading
+          align="center"
+          size="hero"
+          eyebrow="Healthcare Automation."
+          headline="Pure Patient Delight."
+          description="Seamless WhatsApp appointment booking, instant PDF receipts, and real-time clinical workflows for modern hospital teams."
+        />
 
-        <button className="btn-primary w-full py-3.5 mt-2 text-sm font-semibold tracking-wide hover:bg-ocean-glimmer" disabled={loading}>
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Signing in…
-            </span>
-          ) : (
-            'Sign In'
-          )}
-        </button>
-      </form>
+        {/* Login App Card Shell */}
+        <div className="w-full max-w-[440px] mt-10">
+          <div className="card-feature border border-edge/60 dark:border-edge bg-canvas dark:bg-dark-card shadow-theater relative">
+            <form onSubmit={submit} className="space-y-5">
+              <div>
+                <label className="label">Username or Mobile Number</label>
+                <input
+                  className="input"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. 9876543210 or admin"
+                  autoComplete="username"
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="label">Access Password</label>
+                </div>
+                <input
+                  type="password"
+                  className="input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+
+              {err && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-[14px] text-xs font-medium text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 mt-1 flex-shrink-0" />
+                  <span>{err}</span>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary w-full text-base font-medium shadow-glow-blue"
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      <span>Authenticating…</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span>Enter Care Console</span>
+                      <ArrowRight size={16} />
+                    </span>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Quick feature highlights inside card footer */}
+            <div className="mt-8 pt-6 border-t border-edge/40 dark:border-edge/50 flex items-center justify-around text-xs text-muted dark:text-dark-muted">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-500" />
+                <span>Meta API Ready</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-brand-blue" />
+                <span>End-to-End Encrypted</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-brand-gold" />
+                <span>24/7 Flow</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature Intermission Band: 3 Floating vignettes */}
+        <div className="w-full max-w-[960px] grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+          <div className="card-feature text-center flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-brand-sky/15 text-brand-sky flex items-center justify-center mb-4">
+              <MessageCircle size={22} />
+            </div>
+            <h4 className="font-medium text-lg text-ink dark:text-white">WhatsApp Bot</h4>
+            <p className="text-xs text-muted dark:text-dark-muted mt-1 leading-relaxed">
+              Patients book in 3 steps in English or Telugu without human intervention.
+            </p>
+          </div>
+
+          <div className="card-feature text-center flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-brand-violet/15 text-brand-violet flex items-center justify-center mb-4">
+              <Sparkles size={22} />
+            </div>
+            <h4 className="font-medium text-lg text-ink dark:text-white">Smart Rescheduling</h4>
+            <p className="text-xs text-muted dark:text-dark-muted mt-1 leading-relaxed">
+              Doctor absent? Auto-postpone appointments and WhatsApp notify patients immediately.
+            </p>
+          </div>
+
+          <div className="card-feature text-center flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-4">
+              <ShieldCheck size={22} />
+            </div>
+            <h4 className="font-medium text-lg text-ink dark:text-white">Instant PDF Slips</h4>
+            <p className="text-xs text-muted dark:text-dark-muted mt-1 leading-relaxed">
+              In-memory generated consultation passes and hospital navigation links.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Mini footer */}
+      <footer className="relative z-10 w-full py-6 text-center text-xs text-muted dark:text-dark-muted border-t border-edge/40">
+        © {new Date().getFullYear()} Vijya Hospital Console · Built with Colorful App Theatre Language
+      </footer>
     </div>
   );
 }

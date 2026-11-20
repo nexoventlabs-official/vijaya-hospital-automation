@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Printer, Check, X, IndianRupee, FileText } from 'lucide-react';
+import {
+  ArrowLeft, Printer, Check, X, IndianRupee, FileText,
+  User, Calendar, Stethoscope, CreditCard, ShieldCheck, Clock,
+} from 'lucide-react';
 import api, { apiBase } from '../api';
+import PairedHeading from '../components/PairedHeading.jsx';
+import { SkeletonDetails } from '../components/Skeleton.jsx';
 
 export default function AppointmentDetails() {
   const { id } = useParams();
@@ -9,11 +14,13 @@ export default function AppointmentDetails() {
   const [a, setA] = useState(null);
   const [busy, setBusy] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: '...' }
+  const [msg, setMsg] = useState(null);
 
   async function load() {
-    const r = await api.get(`/appointments/${id}`);
-    setA(r.data);
+    try {
+      const r = await api.get(`/appointments/${id}`);
+      setA(r.data);
+    } catch {}
   }
   useEffect(() => { load(); }, [id]);
 
@@ -22,25 +29,25 @@ export default function AppointmentDetails() {
     try {
       const r = await api.post(`/appointments/${id}/${path}`, body);
       setA(r.data);
-      setMsg({ type: 'success', text: `Consultation ${path} updated successfully` });
+      setMsg({ type: 'success', text: `Consultation marked as ${path} successfully.` });
     } catch (e) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Operation failed' });
-    } finally { setBusy(false); setTimeout(() => setMsg(null), 2500); }
+    } finally {
+      setBusy(false);
+      setTimeout(() => setMsg(null), 3000);
+    }
   }
 
   function print() {
     const token = localStorage.getItem('vh_token');
     const url = `${apiBase}/appointments/${id}/pdf`;
     setPrinting(true);
-    // Open PDF in a new window with auth header is not possible directly,
-    // so we fetch as blob then open in a new tab where the browser triggers print.
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.blob())
       .then((b) => {
         const objUrl = URL.createObjectURL(b);
         const w = window.open(objUrl);
         if (w) {
-          // setTimeout is more reliable than 'load' for blob PDF URLs across browsers
           setTimeout(() => {
             try { w.focus(); w.print(); } catch {}
           }, 800);
@@ -49,182 +56,226 @@ export default function AppointmentDetails() {
       .finally(() => setPrinting(false));
   }
 
-  if (!a) return <div className="text-soft-stone py-12 text-center text-sm font-medium animate-pulse">Loading appointment details…</div>;
-
-  const Row = ({ k, v }) => (
-    <tr className="hover:bg-pale-amber/5">
-      <td className="px-5 py-3 text-soft-stone text-xs font-semibold uppercase tracking-wider w-1/3">{k}</td>
-      <td className="px-5 py-3 font-medium text-midnight-pine text-sm">{v ?? '—'}</td>
-    </tr>
-  );
+  if (!a) {
+    return <SkeletonDetails />;
+  }
 
   const isActive = ['booked', 'arrived'].includes(a.status);
 
-  return (
-    <div className="space-y-6 max-w-5xl font-mint">
-      <button onClick={() => nav(-1)} className="btn-secondary py-1.5 px-3 text-xs font-semibold">
-        <ArrowLeft size={14} /> Back
-      </button>
+  const Row = ({ k, v }) => (
+    <div className="flex items-center justify-between py-2.5 border-b border-edge/30 last:border-0 text-sm">
+      <span className="text-muted dark:text-dark-muted font-medium text-xs">{k}</span>
+      <span className="font-medium text-ink dark:text-white text-right">{v ?? '—'}</span>
+    </div>
+  );
 
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-pale-amber/10 p-5 rounded-2xl border border-arctic-mist">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-midnight-pine font-grenette">{a.code}</h1>
-          <span className={`badge status-${a.status} mt-2`}>{a.status}</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={print} disabled={printing} className="btn-secondary py-2 px-3 text-xs font-semibold">
+  return (
+    <div className="space-y-8">
+      {/* Top Navigation & Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-edge/40">
+        <button
+          onClick={() => nav(-1)}
+          className="btn-secondary h-10 px-4 text-xs font-semibold self-start"
+        >
+          <ArrowLeft size={14} />
+          <span>Back to List</span>
+        </button>
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={print}
+            disabled={printing}
+            className="btn-secondary h-10 px-5 text-xs font-medium"
+          >
             {printing ? (
-              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-              </svg>
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-brand-blue border-t-transparent animate-spin" />
             ) : (
               <Printer size={14} />
             )}
-            {printing ? 'Generating…' : 'Print PDF'}
+            <span>{printing ? 'Generating Slip…' : 'Print Pass PDF'}</span>
           </button>
+
           {isActive && a.status === 'booked' && (
-            <button disabled={busy} onClick={() => action('arrive')} className="btn-secondary py-2 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-50">
-              {busy ? (
-                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                </svg>
-              ) : (
-                <Check size={14} />
-              )}
-              Mark Arrived
+            <button
+              disabled={busy}
+              onClick={() => action('arrive')}
+              className="btn-secondary h-10 px-5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-300"
+            >
+              <Check size={14} />
+              <span>Mark Arrived</span>
             </button>
           )}
+
           {isActive && (
             <>
-              <button disabled={busy} onClick={() => action('complete', { paymentReceived: a.paymentMode === 'pay_at_hospital' })} className="btn-primary py-2 px-4 text-xs font-semibold">
-                {busy ? (
-                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                  </svg>
-                ) : (
-                  <Check size={14} />
-                )}
-                {busy ? 'Updating…' : 'Complete Consultation'}
+              <button
+                disabled={busy}
+                onClick={() => action('complete', { paymentReceived: a.paymentMode === 'pay_at_hospital' })}
+                className="btn-primary h-10 px-5 text-xs font-medium"
+              >
+                <Check size={14} />
+                <span>Complete Consult</span>
               </button>
+
               {a.paymentMode === 'pay_at_hospital' && a.paymentStatus !== 'paid' && (
-                <button disabled={busy} onClick={() => action('payment')} className="btn-secondary py-2 px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
-                  {busy ? (
-                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                    </svg>
-                  ) : (
-                    <IndianRupee size={14} />
-                  )}
-                  Mark Paid
+                <button
+                  disabled={busy}
+                  onClick={() => action('payment')}
+                  className="btn-secondary h-10 px-5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300"
+                >
+                  <IndianRupee size={14} />
+                  <span>Receive Payment</span>
                 </button>
               )}
-              <button disabled={busy} onClick={() => action('cancel', { reason: prompt('Cancel reason?') || 'Cancelled by admin' })} className="btn-danger py-2 px-3 text-xs font-semibold">
-                {busy ? (
-                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                  </svg>
-                ) : (
-                  <X size={14} />
-                )}
-                Cancel
+
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const r = prompt('Reason for cancelling this appointment?');
+                  if (r) action('cancel', { reason: r });
+                }}
+                className="btn-danger h-10 px-5 text-xs font-medium"
+              >
+                <X size={14} />
+                <span>Cancel</span>
               </button>
             </>
           )}
         </div>
       </div>
 
+      {/* Chapter Heading with Badges */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <PairedHeading
+          eyebrow="Consultation File."
+          headline={`Booking — ${a.code}`}
+          description={`Registered on ${a.date} at ${a.timeLabel || a.time} with Dr. ${a.doctorName}.`}
+          badge={
+            <span className={`badge status-${a.status} text-sm px-3.5 py-1 font-semibold`}>
+              Status: {a.status}
+            </span>
+          }
+        />
+      </div>
+
       {msg && (
-        <div className={`p-4 rounded-xl border flex items-center gap-2.5 text-sm font-medium ${
-          msg.type === 'success'
-            ? 'bg-pale-mint/30 border-pale-mint text-zenith-teal'
-            : 'bg-rose-50 border-rose-200 text-rose-800'
-        }`}>
-          {msg.type === 'success' ? (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )}
+        <div
+          className={`p-4 rounded-[16px] text-sm font-medium flex items-center gap-2 border ${
+            msg.type === 'success'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-300'
+              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border-rose-300'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <span>{msg.text}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 bg-pale-amber/20 border-b border-arctic-mist text-midnight-pine font-semibold font-grenette">
-            Appointment Details
+      {/* 4 Capability Cards in 2x2 Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card 1: Consultation Details */}
+        <div className="card-feature border border-edge/50 dark:border-edge/40 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-edge/40">
+            <div className="w-10 h-10 rounded-xl bg-brand-blue/15 text-brand-blue flex items-center justify-center">
+              <Calendar size={18} />
+            </div>
+            <div>
+              <h3 className="font-medium text-base text-ink dark:text-white">Appointment Schedule</h3>
+              <div className="text-xs text-muted">Timestamps & reference codes</div>
+            </div>
           </div>
-          <table className="min-w-full text-sm">
-            <tbody className="divide-y divide-arctic-mist/70">
-              <Row k="Code" v={a.code} />
-              <Row k="Status" v={<span className={`badge status-${a.status}`}>{a.status}</span>} />
-              <Row k="Date" v={a.date} />
-              <Row k="Time" v={a.timeLabel || a.time} />
-              <Row k="Booked at" v={a.createdAt && new Date(a.createdAt).toLocaleString()} />
-              <Row k="Arrived at" v={a.arrivedAt && new Date(a.arrivedAt).toLocaleString()} />
-              <Row k="Completed at" v={a.completedAt && new Date(a.completedAt).toLocaleString()} />
-              {a.cancellationReason && <Row k="Cancel reason" v={a.cancellationReason} />}
-              {a.postponeReason && <Row k="Postpone reason" v={a.postponeReason} />}
-            </tbody>
-          </table>
+          <div className="space-y-1">
+            <Row k="Reference Code" v={<span className="font-mono font-semibold text-brand-blue">{a.code}</span>} />
+            <Row k="Date of Visit" v={a.date} />
+            <Row k="Scheduled Time" v={a.timeLabel || a.time} />
+            <Row k="Booked At" v={a.createdAt && new Date(a.createdAt).toLocaleString()} />
+            <Row k="Arrival Time" v={a.arrivedAt && new Date(a.arrivedAt).toLocaleString()} />
+            <Row k="Completed At" v={a.completedAt && new Date(a.completedAt).toLocaleString()} />
+            {a.cancellationReason && <Row k="Cancellation Note" v={a.cancellationReason} />}
+            {a.postponeReason && <Row k="Postponed Reason" v={a.postponeReason} />}
+          </div>
         </div>
 
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 bg-pale-amber/20 border-b border-arctic-mist text-midnight-pine font-semibold font-grenette">
-            Patient Profile
+        {/* Card 2: Patient Dossier */}
+        <div className="card-feature border border-edge/50 dark:border-edge/40 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-edge/40">
+            <div className="w-10 h-10 rounded-xl bg-brand-violet/15 text-brand-violet flex items-center justify-center">
+              <User size={18} />
+            </div>
+            <div>
+              <h3 className="font-medium text-base text-ink dark:text-white">Patient Profile</h3>
+              <div className="text-xs text-muted">Verified contact & demographics</div>
+            </div>
           </div>
-          <table className="min-w-full text-sm">
-            <tbody className="divide-y divide-arctic-mist/70">
-              <Row k="Name" v={a.patientName} />
-              <Row k="WhatsApp" v={`+${a.patientPhone}`} />
-              <Row k="Age" v={a.patientAge} />
-              <Row k="Gender" v={a.patientGender} />
-              <Row k="Reason" v={a.reason} />
-            </tbody>
-          </table>
+          <div className="space-y-1">
+            <Row k="Full Name" v={a.patientName} />
+            <Row k="WhatsApp Contact" v={`+${a.patientPhone}`} />
+            <Row k="Age & Gender" v={`${a.patientAge || '—'} yrs · ${a.patientGender || '—'}`} />
+            <Row k="Visit Reason" v={a.reason || 'General Consultation'} />
+          </div>
         </div>
 
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 bg-pale-amber/20 border-b border-arctic-mist text-midnight-pine font-semibold font-grenette">
-            Assigned Doctor
+        {/* Card 3: Assigned Specialist */}
+        <div className="card-feature border border-edge/50 dark:border-edge/40 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-edge/40">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+              <Stethoscope size={18} />
+            </div>
+            <div>
+              <h3 className="font-medium text-base text-ink dark:text-white">Attending Specialist</h3>
+              <div className="text-xs text-muted">Doctor details & section</div>
+            </div>
           </div>
-          <table className="min-w-full text-sm">
-            <tbody className="divide-y divide-arctic-mist/70">
-              <Row k="Doctor" v={a.doctorName} />
-              <Row k="Department" v={a.departmentName} />
-              <Row k="Speciality" v={a.doctorSpeciality} />
-            </tbody>
-          </table>
+          <div className="space-y-1">
+            <Row k="Doctor Name" v={a.doctorName} />
+            <Row k="Department" v={a.departmentName || 'General Medicine'} />
+            <Row k="Specialization" v={a.doctorSpeciality || 'General Practitioner'} />
+          </div>
         </div>
 
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 bg-pale-amber/20 border-b border-arctic-mist text-midnight-pine font-semibold font-grenette">
-            Payment Records
+        {/* Card 4: Billing & Payment */}
+        <div className="card-feature border border-edge/50 dark:border-edge/40 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-edge/40">
+            <div className="w-10 h-10 rounded-xl bg-brand-gold/15 text-brand-gold flex items-center justify-center">
+              <CreditCard size={18} />
+            </div>
+            <div>
+              <h3 className="font-medium text-base text-ink dark:text-white">Payment & Billing</h3>
+              <div className="text-xs text-muted">Fee ledger & settlement</div>
+            </div>
           </div>
-          <table className="min-w-full text-sm">
-            <tbody className="divide-y divide-arctic-mist/70">
-              <Row k="Fee" v={`₹${a.fee}`} />
-              <Row k="Mode" v={a.paymentMode === 'online' ? 'Online' : 'Pay at Hospital'} />
-              <Row k="Status" v={<span className={`badge ${a.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{a.paymentStatus}</span>} />
-            </tbody>
-          </table>
+          <div className="space-y-1">
+            <Row k="Consultation Fee" v={<span className="font-semibold text-base">₹{a.fee}</span>} />
+            <Row k="Settlement Channel" v={a.paymentMode === 'online' ? 'Online Payment Gateway' : 'Pay at Reception Counter'} />
+            <Row
+              k="Payment Status"
+              v={
+                <span
+                  className={`badge ${
+                    a.paymentStatus === 'paid'
+                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                  }`}
+                >
+                  {a.paymentStatus === 'paid' ? 'Paid in Full' : 'Pending Payment'}
+                </span>
+              }
+            />
+          </div>
         </div>
       </div>
 
+      {/* Notes Vignette */}
       {a.notes && (
-        <div className="card p-5">
-          <div className="font-semibold mb-2 flex items-center gap-2 text-midnight-pine font-grenette text-base">
-            <FileText size={16} className="text-zenith-teal" /> Consultation Notes
+        <div className="card-lead border border-brand-blue/30">
+          <div className="flex items-center gap-2 font-medium text-ink dark:text-white mb-2">
+            <FileText size={16} className="text-brand-blue" />
+            <span>Consultation & Prescription Notes</span>
           </div>
-          <div className="text-sm text-soft-stone whitespace-pre-wrap leading-relaxed">{a.notes}</div>
+          <p className="text-sm text-muted dark:text-dark-muted whitespace-pre-wrap leading-relaxed">
+            {a.notes}
+          </p>
         </div>
       )}
     </div>
